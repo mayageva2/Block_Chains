@@ -19,6 +19,7 @@ struct Block{
 
 list<Block> readBlocksFile(const string& filename);
 void printBlocks(const list<Block>& blocks);
-
+void printBlockByHash(const list<Block>& blocks, const string& hash);
+void printBlockByHeight(const list<Block>& blocks, int height);
 
 #endif // BLOCK_FUNCS_H

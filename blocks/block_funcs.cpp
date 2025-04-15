@@ -52,6 +52,37 @@ void printBlocks(const list<Block>& blocks)
     }
 }
 
+void printBlockByHash(const list<Block>& blocks, const string& hash)
+{
+    for (const auto& block : blocks) {
+        if (block.hash == hash) {
+            cout << "Hash: " << block.hash << endl;
+            cout << "Height: " << block.height << endl;
+            cout << "Total: " << block.total << endl;
+            cout << "Time: " << block.time << endl;
+            cout << "Relayed by: " << block.relayed_by << endl;
+            cout << "Prev Block: " << block.prev_block << endl;
+            return;
+        }
+    }
+    cout << "Block with hash " << hash << " not found." << endl;
+}
+
+void printBlockByHeight(const list<Block>& blocks, int height)
+{
+    for (const auto& block : blocks) {
+        if (block.height == height) {
+            cout << "Hash: " << block.hash << endl;
+            cout << "Height: " << block.height << endl;
+            cout << "Total: " << block.total << endl;
+            cout << "Time: " << block.time << endl;
+            cout << "Relayed by: " << block.relayed_by << endl;
+            cout << "Prev Block: " << block.prev_block << endl;
+            return;
+        }
+    }
+    cout << "Block with height " << height << " not found." << endl;
+}
 
 
 
