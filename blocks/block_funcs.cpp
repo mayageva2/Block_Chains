@@ -25,7 +25,7 @@ list<Block> readBlocksFile(const string& filename)
         else if(line.find("Time: ")==0){
             currBlock.time=line.substr(line.find(":")+2);
         }
-        else if(line.find("Relayed by: ")==0){
+        else if(line.find("Relayed By: ")==0){
             currBlock.relayed_by=line.substr(line.find(":")+2);
         }
         else if(line.find("Prev Block: ")==0){
@@ -39,17 +39,29 @@ list<Block> readBlocksFile(const string& filename)
 
 void printBlocks(const list<Block>& blocks)
 {
-    for (const auto& block : blocks) {
+
+    auto it = blocks.begin();
+    while (it != blocks.end())
+    {
+        const Block& block = *it;
+
         cout << "Hash: " << block.hash << endl;
         cout << "Height: " << block.height << endl;
         cout << "Total: " << block.total << endl;
         cout << "Time: " << block.time << endl;
         cout << "Relayed by: " << block.relayed_by << endl;
         cout << "Prev Block: " << block.prev_block << endl;
-        cout << string(40,' ')<<"|\n";
-        cout << string(40,' ')<<"|\n";
-        cout << string(40,' ')<<"V\n";
+
+        it++; //Move to next block
+
+        if (it != blocks.end()) //Case: print an arrow only if it is not the last
+        {
+            cout << string(40,' ')<<"|\n";
+            cout << string(40,' ')<<"|\n";
+            cout << string(40,' ')<<"V\n";
+        }
     }
+    
 }
 
 void printBlockByHash(const list<Block>& blocks, const string& hash)
