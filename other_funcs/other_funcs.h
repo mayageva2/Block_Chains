@@ -15,7 +15,8 @@ struct Block{
 bool open_new_csv_file(std::string filename);
 void print_csv_menu_to_file(std::string filename);
 void printValuesToCSVFile(std::string filename, std::list<Block> lst);
-void reloadDatabase();
+void reloadDatabase(unsigned int num);
+void loadDatabase();
 void userMenu(std::list<Block>& blocks, std::string filename, std::string out);
 void printUserMenu();
 void performFunc(int choice, const std::list<Block>& blocks, std::string filename);

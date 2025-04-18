@@ -79,9 +79,14 @@ void printValuesToCSVFile(std::string filename, std::list<Block> lst) {
     file.close();
 }
 
-void reloadDatabase() {
+void reloadDatabase(unsigned int num) {
 
-    system("blocks.sh 10"); //Argument int: how many blocks will be in the list
+    std::string script = "blocks.sh";
+    char tmp[5]; //Maximum amount of digits for int, especially unsigned
+    sprintf(tmp, "%u", num);
+    std::string numOfBlocks = std::string(tmp);
+    script = script + numOfBlocks;
+    system(script.c_str()); //Argument int: how many blocks will be in the list
 }
 
 void userMenu(std::list<Block>& blocks, std::string filename, std::string out) {
@@ -141,12 +146,12 @@ void performFunc(int choice, const std::list<Block>& blocks, std::string filenam
         
         case 4:
         {
-        bool isOpen = open_new_csv_file(filename);
-        if (isOpen)
-        {
-            print_csv_menu_to_file(filename);
-            printValuesToCSVFile(filename, blocks);
-        }
+            bool isOpen = open_new_csv_file(filename);
+            if (isOpen)
+            {
+                print_csv_menu_to_file(filename);
+                printValuesToCSVFile(filename, blocks);
+            }
         else
             std::cout << "Error! Could not open a new csv file!" << std::endl;
         break;
@@ -154,16 +159,27 @@ void performFunc(int choice, const std::list<Block>& blocks, std::string filenam
         
         case 5:
         {
-        reloadDatabase();
-        break;
+            std::cout << "Please enter the number of blocks you would like to reload: ";
+            unsigned int num = 0;
+            std::cin >> num;
+            reloadDatabase(num);
+            break;
         }
 
         default:
         {
-        std::cout << "Illegal choice! Printing menu again..." << std::endl;
-        break;
+            std::cout << "Illegal choice! Printing menu again..." << std::endl;
+            break;
         }
         
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(500)); //Sleeps for half a second to let the user see the result before the next print
+}
+
+void loadDatabase() {
+
+    std::cout << "Please enter the number of blocks you would like to load: ";
+    unsigned int num = 0;
+    std::cin >> num;
+    reloadDatabase(num);
 }
