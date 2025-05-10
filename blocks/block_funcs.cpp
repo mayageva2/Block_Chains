@@ -2,6 +2,7 @@
 //For sleeps
 #include <thread>
 #include <chrono>
+#include <cstring>
 
 list<Block> readBlocksFile(const string& filename)
 {
