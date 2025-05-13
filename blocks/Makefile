@@ -8,23 +8,27 @@ OS_LIBS = -lpthread -lm
 ODIR ?= build
 
 #Source and Object Files
-SRCS := $(subst ./,,$(shell find . -maxdepth 1 -name "*.cpp"))
+SRCS := $(filter-out block_funcs.cpp, $(subst ./,,$(shell find . -maxdepth 1 -name "*.cpp")))
 OBJS := $(addprefix $(ODIR)/,$(patsubst %.cpp,%.o,$(SRCS)))
+OUTS := $(addprefix $(ODIR)/,$(patsubst %.cpp,%.out,$(SRCS)))
 
 #Shared library build
 LIB := block_funcs
 LIB_SRC := block_funcs.cpp
 LIBPATH := $(ODIR)/lib$(LIB).so
 
+# Default target
+all: $(OUTS) $(LIBPATH)
+
 #Build shared library
 $(LIBPATH): $(LIB_SRC)
 	mkdir -p $(ODIR)
 	$(CXX) -shared $(CXXFLAGS) -o $@ $<
 
-#Compile each .cpp file into .o files
-$(ODIR)/%.o: %.cpp
+#Build .out files
+$(ODIR)/%.out: %.cpp block_funcs.cpp block_funcs.h
 	mkdir -p $(ODIR)
-	$(CXX) -c $(CXXFLAGS) -o $@ $<
+	$(CXX) $(CXXFLAGS) $< block_funcs.cpp -o $@
 
 #Link all objects + shared lib into one executable
 $(ODIR)/$(TARGET_NAME): $(OBJS) $(LIBPATH)
