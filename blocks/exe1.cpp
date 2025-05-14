@@ -3,7 +3,7 @@
 
 int main()
 {
-    string filename = "blocks.out";
+    string filename = "./blocks.out";
     list<Block> blocks = readBlocksFile(filename);
     printBlocks(blocks);
     return 0;

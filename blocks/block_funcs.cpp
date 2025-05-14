@@ -166,7 +166,7 @@ void printValuesToCSVFile(std::string filename, std::list<Block> lst) {
 
 void reloadDatabase(unsigned int num) {
 
-    std::string script = "blocks.sh";
+    std::string script = "../blocks.sh ";
     char tmp[5]; //Maximum amount of digits for int, especially unsigned
     sprintf(tmp, "%u", num);
     std::string numOfBlocks = std::string(tmp);
