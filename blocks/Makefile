@@ -1,11 +1,11 @@
 #Variables declaration
-TARGET_NAME = program.out
 IDIR = -Ilib
 CXX = g++
 CXXFLAGS = -fPIC $(IDIR)
 OS_LIBS = -lpthread -lm
 
 ODIR ?= build
+LDFLAGS := -L$(ODIR) -lblock_funcs -Wl,-rpath,$(ODIR)
 
 #Source and Object Files
 SRCS := $(filter-out block_funcs.cpp, $(subst ./,,$(shell find . -maxdepth 1 -name "*.cpp")))
@@ -26,16 +26,9 @@ $(LIBPATH): $(LIB_SRC)
 	$(CXX) -shared $(CXXFLAGS) -o $@ $<
 
 #Build .out files
-$(ODIR)/%.out: %.cpp block_funcs.cpp block_funcs.h
+$(ODIR)/%.out: %.cpp block_funcs.h $(LIBPATH)
 	mkdir -p $(ODIR)
-	$(CXX) $(CXXFLAGS) $< block_funcs.cpp -o $@
-
-#Link all objects + shared lib into one executable
-$(ODIR)/$(TARGET_NAME): $(OBJS) $(LIBPATH)
-	$(CXX) -o $@ $^ -L$(ODIR) -l$(LIB) $(OS_LIBS)
-
-#Default target
-myprog: $(ODIR)/$(TARGET_NAME)
+	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
 
 #Clean target
 .PHONY: clean

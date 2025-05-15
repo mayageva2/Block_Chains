@@ -5,7 +5,7 @@ BLOCKS_AMOUNT=$1
 URL="https://api.blockcypher.com/v1/btc/main"
 CURR_HASH=$(curl -s $URL | awk -F '"' '/"hash":/ {print $4; exit}')
 BLOCK_URL="https://api.blockcypher.com/v1/btc/main/blocks"
-FILE_NAME="blocks.out"
+FILE_NAME="blocks.list"
 
 #creates new file for output
 touch $FILE_NAME
