@@ -5,7 +5,8 @@ CXXFLAGS = -fPIC $(IDIR)
 OS_LIBS = -lpthread -lm
 
 ODIR ?= build
-LDFLAGS := -L$(ODIR) -lblock_funcs -Wl,-rpath,$(ODIR)
+ABS_ODIR := $(abspath $(ODIR))
+LDFLAGS := -L$(ODIR) -lblock_funcs -Wl,-rpath,$(ABS_ODIR) $(OS_LIBS)
 
 #Source and Object Files
 SRCS := $(filter-out block_funcs.cpp, $(subst ./,,$(shell find . -maxdepth 1 -name "*.cpp")))
