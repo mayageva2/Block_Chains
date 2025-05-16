@@ -7,7 +7,6 @@
 #include <fstream>
 using namespace std;
 
-
 struct Block{
     string hash;
     int height;
@@ -21,13 +20,9 @@ list<Block> readBlocksFile(const string& filename);
 void printBlocks(const list<Block>& blocks);
 void printBlockByHash(const list<Block>& blocks, const string& hash);
 void printBlockByHeight(const list<Block>& blocks, int height);
-void printUserMenu();
-void performFunc(int choice, const list<Block>& blocks, string filename);
-void userMenu(list<Block>& blocks, string filename, string out);
-void loadDatabase();
 bool open_new_csv_file(string filename);
 void print_csv_menu_to_file(string filename);
 void printValuesToCSVFile(string filename, list<Block> lst);
-void reloadDatabase(unsigned int num);
+void reloadDatabase(unsigned int num, std::string script);
 
 #endif // BLOCK_FUNCS_H
