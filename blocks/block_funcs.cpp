@@ -36,7 +36,7 @@ list<Block> readBlocksFile(const string& filename)
         else if(line.find("Prev Block: ")==0){
             currBlock.prev_block=line.substr(line.find(":")+2);
             blocks.push_back(currBlock);
-            currBlock={}; // Reset current block
+            currBlock={}; //Reset current block
         }
     }
     return blocks;
@@ -165,7 +165,7 @@ void printValuesToCSVFile(string filename, list<Block> lst) {
     file.close();
 }
 
-void reloadDatabase(unsigned int num, std::string script) {
+void reloadDatabase(unsigned int num, string script) {
 
     char tmp[5]; //Maximum amount of digits for int, especially unsigned
     sprintf(tmp, "%u", num);

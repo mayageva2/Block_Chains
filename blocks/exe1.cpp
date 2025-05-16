@@ -8,7 +8,7 @@ int main()
         list<Block> blocks = readBlocksFile(filename);
         printBlocks(blocks);
     }
-    catch(const std::exception& e)
+    catch(const exception& e)
     {
         cout << "Could not load data: " << e.what() << endl;
     }

@@ -10,7 +10,7 @@ int main()
     int num = 0;
     cin >> num;
 
-    while (num < 1 )
+    while (num < 1)
     {
       cout << "Invalid number of blocks, please try again!" << endl;
       cout << "Please enter the number of blocks: ";

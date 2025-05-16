@@ -123,5 +123,5 @@ void performFunc(int choice, const list<Block>& blocks, string filename) {
     }
 
     }
-   this_thread::sleep_for(std::chrono::milliseconds(500)); //Sleeps for half a second to let the user see the result before the next print
+   this_thread::sleep_for(chrono::milliseconds(500)); //Sleeps for half a second to let the user see the result before the next print
 }
