@@ -93,9 +93,9 @@ void printBlockByHeight(const list<Block>& blocks, int height) //print block dat
     cout << "Block with height " << height << " not found." << endl;
 }
 
-bool open_new_csv_file(std::string filename) {
+bool open_new_csv_file(string filename) {
 
-    std::ifstream file(filename, std::ios::out | std::ios::trunc); //Open the csv file and removes any previous content
+    ifstream file(filename, ios::out | ios::trunc); //Open the csv file and removes any previous content
 
     if (!file.is_open()) //Case: File could not be opened
         return false;
@@ -104,13 +104,13 @@ bool open_new_csv_file(std::string filename) {
     return true; //Case: File could be opened
 }
 
-void print_csv_menu_to_file(std::string filename) {
+void print_csv_menu_to_file(string filename) {
 
-    std::ofstream file(filename);
+    ofstream file(filename);
 
     if (!file.is_open()) //Case: File could not be opened
     {
-        std::cout << "Error! Could not open file to print csv menu" << std::endl;
+        cout << "Error! Could not open file to print csv menu" << endl;
         return;
     }
 
@@ -126,13 +126,13 @@ void print_csv_menu_to_file(std::string filename) {
     file.close();
 }
 
-void printValuesToCSVFile(std::string filename, std::list<Block> lst) {
+void printValuesToCSVFile(string filename, list<Block> lst) {
 
-    std::ofstream file(filename, std::ios::out | std::ios::app);
+    ofstream file(filename, ios::out | ios::app);
 
     if (!file.is_open()) //Case: File could not be opened
     {
-        std::cout << "Error! Could not open file to print values to the csv" << std::endl;
+        cout << "Error! Could not open file to print values to the csv" << endl;
         return;
     }
 
@@ -169,21 +169,21 @@ void reloadDatabase(unsigned int num, std::string script) {
 
     char tmp[5]; //Maximum amount of digits for int, especially unsigned
     sprintf(tmp, "%u", num);
-    std::string numOfBlocks = std::string(tmp);
+    string numOfBlocks = string(tmp);
     script = script + numOfBlocks;
 
     //Save current directory
     char currDir[MAX_PATH_LEN] = {}; //Initialize
     if (!getcwd(currDir, sizeof(currDir)))
     {
-        std::cout << "Error getting current directory: " << strerror(errno) << std::endl;
+        cout << "Error getting current directory: " << strerror(errno) << endl;
         return;
     }
 
     //Change to parent directory
     if (chdir("..") != 0)
     {
-        std::cout << "Error changing directory: " << strerror(errno) << std::endl;
+        cout << "Error changing directory: " << strerror(errno) << endl;
         return;
     }
 
@@ -192,5 +192,5 @@ void reloadDatabase(unsigned int num, std::string script) {
 
     //Return to the original directory
     if (chdir(currDir) != 0)
-        std::cout << "Error returning to original directory: " << strerror(errno) << std::endl;
+        cout << "Error returning to original directory: " << strerror(errno) << endl;
 }

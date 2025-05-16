@@ -11,18 +11,18 @@ int main()
     string mode;
     string value;
     
-    std::cout<<"Enter mode: hash / height"<<std::endl;
-    std::cin>>mode;
+    cout<<"Enter mode: hash / height"<<endl;
+    cin>>mode;
     
     while(mode!= "hash" && mode!= "height") 
     {
-    std::cout << "Mode is not supported. Please enter height or hash."<<std::endl;
+    std::cout << "Mode is not supported. Please enter height or hash."<<endl;
     cin>>mode;
     }
     
-    std::cout<<"Enter value: "<<std::endl;
-    std::cin>>value;
-    std::cout<<std::endl;
+    cout<<"Enter value: "<<endl;
+    cin>>value;
+    cout<<endl;
     
     string filename = "../blocks.list";
     list<Block> blocks = readBlocksFile(filename);
@@ -34,7 +34,7 @@ int main()
   }
   catch(const std::exception& e)
   {
-      std::cout << "Could not load data: " << e.what() << std::endl;
+      cout << "Could not load data: " << e.what() << endl;
   }
     
   return 0;

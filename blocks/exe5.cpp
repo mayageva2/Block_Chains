@@ -18,15 +18,15 @@ int main()
         string databaseFilename = "database.csv";
         userMenu(blocks, databaseFilename, filename);
     }
-    catch(const std::exception& e)
+    catch(const exception& e)
     {
-        std::cout << "Error reading blocks from the text file: " << filename << endl;
+        cout << "Error reading blocks from the text file: " << filename << endl;
     }
 
   return 0;
 }
 
-void userMenu(std::list<Block>& blocks, std::string filename, std::string out) {
+void userMenu(list<Block>& blocks, string filename, string out) {
 
   int choice = 0;
 
@@ -35,36 +35,36 @@ void userMenu(std::list<Block>& blocks, std::string filename, std::string out) {
     try
     {
         printUserMenu();
-      std::cin >> choice;
+      cin >> choice;
       while(choice>5 || choice<1)
       {
-      std::cout<<"Invalid choice. Please try again: ";
-      std::cin>>choice;
+      cout<<"Invalid choice. Please try again: ";
+      cin>>choice;
       }
       performFunc(choice, blocks, filename);
 
       if (choice == 5) //Case: refresh data
           blocks = readBlocksFile(out);
     }
-    catch(const std::exception& e)
+    catch(const exception& e)
     {
-        std::cout << "Could not load data: " << e.what() << std::endl;
+        cout << "Could not load data: " << e.what() << endl;
     }
   }
 }
 
 void printUserMenu() {
 
-  std::cout << "Choose an option:" << std::endl;
-  std::cout << "1. Print db" << std::endl;
-  std::cout << "2. Print block by hash" << std::endl;
-  std::cout << "3. Print block by height" << std::endl;
-  std::cout << "4. Export data to csv" << std::endl;
-  std::cout << "5. Refresh data" << std::endl;
-  std::cout << "Enter your choice: ";
+  cout << "Choose an option:" << endl;
+  cout << "1. Print db" << endl;
+  cout << "2. Print block by hash" << endl;
+  cout << "3. Print block by height" << endl;
+  cout << "4. Export data to csv" << endl;
+  cout << "5. Refresh data" << endl;
+  cout << "Enter your choice: ";
 }
 
-void performFunc(int choice, const std::list<Block>& blocks, std::string filename) {
+void performFunc(int choice, const list<Block>& blocks, string filename) {
 
   switch (choice)
   {
@@ -77,9 +77,9 @@ void performFunc(int choice, const std::list<Block>& blocks, std::string filenam
   case 2:
   {
       char tmp[70];
-      std::cout << "Enter block hash: ";
-      std::cin >> tmp;
-      std::string hash(tmp);
+      cout << "Enter block hash: ";
+      cin >> tmp;
+      string hash(tmp);
       printBlockByHash(blocks, hash);
       break;
   }
@@ -87,8 +87,8 @@ void performFunc(int choice, const std::list<Block>& blocks, std::string filenam
   case 3:
   {
       int height;
-      std::cout << "Enter block height: ";
-      std::cin >> height;
+      cout << "Enter block height: ";
+      cin >> height;
       printBlockByHeight(blocks, height);
       break;
   }
@@ -102,26 +102,26 @@ void performFunc(int choice, const std::list<Block>& blocks, std::string filenam
             printValuesToCSVFile(filename, blocks);
         }
         else
-            std::cout << "Error! Could not open a new csv file!" << std::endl;
+            cout << "Error! Could not open a new csv file!" << endl;
         break;
     }
 
     case 5:
     {
-        std::string script = "./blocks.sh ";
-        std::cout << "Please enter the number of blocks you would like to reload: ";
+        string script = "./blocks.sh ";
+       cout << "Please enter the number of blocks you would like to reload: ";
         unsigned int num = 0;
-        std::cin >> num;
+        cin >> num;
         reloadDatabase(num, script);
         break;
     }
 
     default:
     {
-        std::cout << "Illegal choice! Printing menu again..." << std::endl;
+        cout << "Illegal choice! Printing menu again..." << endl;
         break;
     }
 
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(500)); //Sleeps for half a second to let the user see the result before the next print
+   this_thread::sleep_for(std::chrono::milliseconds(500)); //Sleeps for half a second to let the user see the result before the next print
 }

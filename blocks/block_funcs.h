@@ -23,6 +23,6 @@ void printBlockByHeight(const list<Block>& blocks, int height);
 bool open_new_csv_file(string filename);
 void print_csv_menu_to_file(string filename);
 void printValuesToCSVFile(string filename, list<Block> lst);
-void reloadDatabase(unsigned int num, std::string script);
+void reloadDatabase(unsigned int num, string script);
 
 #endif // BLOCK_FUNCS_H

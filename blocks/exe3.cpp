@@ -14,12 +14,12 @@ int main()
 	    }
       else
       {
-        std::cout << "Error: could not open the csv file" << std::endl;
+        cout << "Error: could not open the csv file" << endl;
       }
     }
-    catch (const std::exception& e)
+    catch (const exception& e)
     {
-        std::cout << "Could not load data: " << e.what() << std::endl;
+        cout << "Could not load data: " << e.what() << endl;
     }
 
   return 0;

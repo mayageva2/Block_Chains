@@ -10,7 +10,7 @@ int main()
     }
     catch(const std::exception& e)
     {
-        std::cout << "Could not load data: " << e.what() << std::endl;
+        cout << "Could not load data: " << e.what() << endl;
     }
     
     return 0;

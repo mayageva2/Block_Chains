@@ -4,15 +4,15 @@ int main()
 {
   try
   {
-    std::string script = "./blocks.sh ";
-    std::cout << "Please enter the number of blocks you would like to reload: ";
+    string script = "./blocks.sh ";
+    cout << "Please enter the number of blocks you would like to reload: ";
 
     int num = 0;
-    std::cin >> num;
+    cin >> num;
 
     while (num < 1 )
     {
-      cout << "Invalid number of blocks, please try again!" << std::endl;
+      cout << "Invalid number of blocks, please try again!" << endl;
       cout << "Please enter the number of blocks: ";
       cin >> num;
 
@@ -22,9 +22,9 @@ int main()
     reloadDatabase(num, script);
   }
   
-  catch(const std::exception& e)
+  catch(const exception& e)
   {
-    std::cout << "Could not load data: " << e.what() << std::endl;
+    cout << "Could not load data: " << e.what() << endl;
   }
 
   return 0;
