@@ -42,9 +42,9 @@ list<Block> readBlocksFile(const string& filename)
     return blocks;
 }
 
-void printBlocks(const list<Block>& blocks)
+void printBlocks(const list<Block>& blocks) //print all the blocks in blocks.list
 {
-    for (auto it=blocks.begin(); it != blocks.end(); ++it) {
+    for (auto it=blocks.begin(); it != blocks.end(); ++it) { 
         cout << "Hash: " << it->hash << endl;
         cout << "Height: " << it->height << endl;
         cout << "Total: " << it->total << endl;
@@ -53,7 +53,7 @@ void printBlocks(const list<Block>& blocks)
         cout << "Prev Block: " << it->prev_block << endl;
         auto next=it;
         ++next;
-        if(next!=blocks.end()){
+        if(next!=blocks.end()){ //print arrow between blocks
             cout << string(40,' ')<<"|\n";
             cout << string(40,' ')<<"|\n";
             cout << string(40,' ')<<"V\n";
@@ -61,7 +61,7 @@ void printBlocks(const list<Block>& blocks)
     }
 }
 
-void printBlockByHash(const list<Block>& blocks, const string& hash)
+void printBlockByHash(const list<Block>& blocks, const string& hash) //print block data by selected hash number
 {
     for (const auto& block : blocks) {
         if (block.hash == hash) {
@@ -77,7 +77,7 @@ void printBlockByHash(const list<Block>& blocks, const string& hash)
     cout << "Block with hash " << hash << " not found." << endl;
 }
 
-void printBlockByHeight(const list<Block>& blocks, int height)
+void printBlockByHeight(const list<Block>& blocks, int height) //print block data by selected height
 {
     for (const auto& block : blocks) {
         if (block.height == height) {

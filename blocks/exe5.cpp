@@ -36,6 +36,11 @@ void userMenu(std::list<Block>& blocks, std::string filename, std::string out) {
     {
         printUserMenu();
       std::cin >> choice;
+      while(choice>5 || choice<1)
+      {
+      std::cout<<"Invalid choice. Please try again: ";
+      std::cin>>choice;
+      }
       performFunc(choice, blocks, filename);
 
       if (choice == 5) //Case: refresh data
