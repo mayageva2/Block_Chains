@@ -4,7 +4,7 @@ int main()
 {
   try
   {
-    std::string script = "../blocks.sh ";
+    std::string script = "./blocks.sh ";
     std::cout << "Please enter the number of blocks you would like to reload: ";
 
     int num = 0;

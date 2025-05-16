@@ -1,6 +1,9 @@
 #include "block_funcs.h"
 
+#define MAX_PATH_LEN 50
+
 #include <cstring>
+#include <unistd.h>
 
 list<Block> readBlocksFile(const string& filename)
 {
@@ -168,5 +171,26 @@ void reloadDatabase(unsigned int num, std::string script) {
     sprintf(tmp, "%u", num);
     std::string numOfBlocks = std::string(tmp);
     script = script + numOfBlocks;
+
+    //Save current directory
+    char currDir[MAX_PATH_LEN] = {}; //Initialize
+    if (!getcwd(currDir, sizeof(currDir)))
+    {
+        std::cout << "Error getting current directory: " << strerror(errno) << std::endl;
+        return;
+    }
+
+    //Change to parent directory
+    if (chdir("..") != 0)
+    {
+        std::cout << "Error changing directory: " << strerror(errno) << std::endl;
+        return;
+    }
+
+    //Execute the script in the parent directory
     system(script.c_str()); //Argument int: how many blocks will be in the list
+
+    //Return to the original directory
+    if (chdir(currDir) != 0)
+        std::cout << "Error returning to original directory: " << strerror(errno) << std::endl;
 }

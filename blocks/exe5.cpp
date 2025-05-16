@@ -11,16 +11,16 @@ void printUserMenu();
 
 int main()
 {
+    string filename = "../blocks.list";
     try
     {
-        string filename = "../blocks.list";
         list<Block> blocks = readBlocksFile(filename);
         string databaseFilename = "database.csv";
         userMenu(blocks, databaseFilename, filename);
     }
     catch(const std::exception& e)
     {
-        std::cout << "Could not load data: " << e.what() << std::endl;
+        std::cout << "Error reading blocks from the text file: " << filename << endl;
     }
 
   return 0;
@@ -32,12 +32,19 @@ void userMenu(std::list<Block>& blocks, std::string filename, std::string out) {
 
   while (true)
   {
-      printUserMenu();
+    try
+    {
+        printUserMenu();
       std::cin >> choice;
       performFunc(choice, blocks, filename);
 
       if (choice == 5) //Case: refresh data
           blocks = readBlocksFile(out);
+    }
+    catch(const std::exception& e)
+    {
+        std::cout << "Could not load data: " << e.what() << std::endl;
+    }
   }
 }
 
@@ -96,7 +103,7 @@ void performFunc(int choice, const std::list<Block>& blocks, std::string filenam
 
     case 5:
     {
-        std::string script = "../blocks.sh ";
+        std::string script = "./blocks.sh ";
         std::cout << "Please enter the number of blocks you would like to reload: ";
         unsigned int num = 0;
         std::cin >> num;
