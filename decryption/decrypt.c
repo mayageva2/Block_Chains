@@ -64,7 +64,7 @@ int continue_decryption(SharedData* shared,int* new_data)
    int pass_changed=(shared->new_data==0);
    int was_solved=shared->decrypted;
 
-   pthread_mutex_unlock(&shard->mutex);
+   pthread_mutex_unlock(&shared->mutex); //FIXED MISSING "E" HERE
 
    if(pass_changed || was_solved){return 0;} //will stop descryption
 
@@ -103,7 +103,8 @@ void* decryptProcess(void* argument)
         if(success) //if decryption attempt succeeded
         {
             pthread_mutex_lock(&res->lock); 
-            int valid=is_valid(res->password,shared->original,password_length); //check if decrypted password matches the real one
+            int valid=is_valid(res->password,shared->original_pass,password_length); //check if decrypted password matches the real one
+            //CHANGED ORIGINAL TO ORIGINAL_PASS
             if(valid)
             {
               printf("After decryption %s, key guessed %s, sending to server after %d iterations\n",

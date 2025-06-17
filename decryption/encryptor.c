@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <pthread.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -18,20 +19,22 @@ typedef struct {
     int new_data; //new_data=1 means new encrypted password available
     pthread_mutex_t mutex;
     pthread_cond_t cond;
-    int decrypted; //success flag, decrypted=1 means that the password was decrypted
+    bool decrypted; //success flag, decrypted=1 means that the password was decrypted
 } SharedData;
 
 SharedData shared = {
     .length = 0,
     .new_data = 0, 
     .mutex = PTHREAD_MUTEX_INITIALIZER,
-    .cond = PTHREAD_COND_INITIALIZER
+    .cond = PTHREAD_COND_INITIALIZER,
+    .decrypted = false //CHANGED THIS
 };
 
 //Global arguments-??
 int password_length = 32;
 int num_decrypters = 1;
 int timeout_seconds = 0;
+bool running = true; // ADDED THIS
 
 // Helper to generate a printable random password
 void generate_printable_password(char *password, int length) {
@@ -44,14 +47,7 @@ void generate_printable_password(char *password, int length) {
     }
 }
 
-/*/ Encrypt password with simple XOR cipher using a repeating key
-void encrypt_password(const char *password, const char *key, char *encrypted, int length, int key_length) {
-    for (int i = 0; i < length; ++i) {
-        encrypted[i] = password[i] ^ key[i % key_length];
-    }
-}/*/
-
-// Encrypt password with MTA encrypt -GAL CHECK IT
+// Encrypt password with MTA encrypt -I DON'T KNOW WHAT IS THE STATUS BUT BESIDES THIS, ITS OK
 void encrypt_password(char *password,char *key, char *encrypted, int length, int key_length) 
 {
     unsigned int out_len = length;
@@ -71,30 +67,40 @@ void *encrypter(void *arg) {
         MTA_get_rand_data(key, password_length / 8);
         encrypt_password(password, key, encrypted, password_length, password_length / 8);
 
+        //GAL - SHOULD I STEAL THE SHARED DATA AND PRINT THE PASSWORD AND KEY LIKE GABI DID, HERE?
+        //MAYBE ALSO MENTION THE NUMBER OF THE THREAD?
+
         // Write encrypted password to shared buffer
         pthread_mutex_lock(&shared.mutex);
         memcpy(shared.original_pass, password, password_length);
         memcpy(shared.encrypted, encrypted, password_length);
         shared.length = password_length;
         shared.new_data = 1; //new encrypted password available
-        shared.decrypted = 0; //encrypted password wasn't decrypted
+        shared.decrypted = false; //encrypted password wasn't decrypted
         pthread_cond_broadcast(&shared.cond);
         pthread_mutex_unlock(&shared.mutex);
 
         printf("[Encrypter] Generated new password and key. Waiting for decrypters...\n");
 
-        // Wait for timeout or correct decryption (not implemented yet)
+        // Wait for timeout or correct decryption - IMPLEMENTED BY GAL
        time_t start = time(NULL);
-       while (1) {
+       while (true) {
             sleep(1); // simulate wait
+
+            pthread_mutex_lock(&shared.mutex);
+            bool done = shared.decrypted;
+            pthread_mutex_unlock(&shared.mutex);
+
+            if (done) {
+
+                printf("[Encrypter] Password was successfully decrypted.\n");
+                break;
+            }
+
             if (timeout_seconds > 0 && time(NULL) - start >= timeout_seconds) {
                 printf("[Encrypter] Timeout expired. Generating new password.\n");
                 break;
             }
-            
-            //Placeholder for checking descrypted input...- decryptor checks on his own correct password?
-            // If correct decrypted password received:
-            // break;
        
         }
 

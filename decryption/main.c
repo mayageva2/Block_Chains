@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
     }
 
     pthread_t encrypter_thread;
-    if(pthread_create(&encrypter_thread, NULL, encrypter, NULL)!=0) //aded memory allocation check
+    if(pthread_create(&encrypter_thread, NULL, encrypter, NULL)!=0) //added memory allocation check
     {
       printf("Failed allocate memory for encryptor thread");
       exit(1);
