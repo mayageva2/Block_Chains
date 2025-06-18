@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 
     pthread_join(encrypter_thread, NULL);
     //wait for decryptors work
-    running=0;
+    running=false;
     pthread_mutex_lock(&shared.mutex);
     pthread_cond_broadcast(&shared.cond);
     pthread_mutex_unlock(&shared.mutex);

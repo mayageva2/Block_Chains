@@ -34,8 +34,8 @@ int is_printable(char* buf, int len)
     return 1;
 }
 
-// this func attempts to decrypt the password                                                 //maybe change shared to diffrent name? like result
-int decryption_attempt(char* encrypted, unsigned int enc_len, char* key, unsigned int key_len, DecryptionResult* shared) 
+// this func attempts to decrypt the password                                                 //changed shared to res (just seems more acurate)
+int decryption_attempt(char* encrypted, unsigned int enc_len, char* key, unsigned int key_len, DecryptionResult* res) 
 {
     char decrypted[128] = {0};
     unsigned int out_len = enc_len;
@@ -46,29 +46,23 @@ int decryption_attempt(char* encrypted, unsigned int enc_len, char* key, unsigne
   return 0; //attempt failed
 }
         
-    pthread_mutex_lock(&shared->lock);
+    pthread_mutex_lock(&res->lock);
 
-    memcpy(shared->password, decrypted, out_len);
-    memcpy(shared->last_key, key, key_len);
+    memcpy(res->password, decrypted, out_len);
+    memcpy(res->last_key, key, key_len);
 
-    pthread_cond_signal(&shared->cond);
-    pthread_mutex_unlock(&shared->lock);
-    printf("[DEBUG] Decrypted: %.*s\n", out_len, decrypted);
+    pthread_cond_signal(&res->cond);
+    pthread_mutex_unlock(&res->lock);
     return 1;
 }
 
-int continue_decryption(SharedData* shared,int* new_data)
+int continue_decryption(SharedData* shared)
 {
    pthread_mutex_lock(&shared->mutex);
+   int was_solved=shared->decrypted; //password was decrypted
+   pthread_mutex_unlock(&shared->mutex); 
 
-   int pass_changed=(shared->new_data==0);
-   int was_solved=shared->decrypted;
-
-   pthread_mutex_unlock(&shared->mutex); //FIXED MISSING "E" HERE
-
-   if(pass_changed || was_solved){return 0;} //will stop descryption
-
-   return 1; //continue descryption
+   return !was_solved; //continue descryption
 }
 
 
@@ -81,7 +75,6 @@ void* decryptProcess(void* argument)
     char encrypted_local[128];
     char key[16];
     int iter=0; //counter for number iterations in brute-force loop
-    int new_data_avail=0;
 
     while(running) //continue as long as encryptor sending passwords
     {
@@ -91,11 +84,16 @@ void* decryptProcess(void* argument)
       }
 
       memcpy(encrypted_local,shared->encrypted,password_length);//  copy encrypted password for decryptor use
+      
       pthread_mutex_unlock(&shared->mutex); 
       iter=0; 
       
       while(running)//brute-force loop
       { 
+        //check if new password was encrypted
+        if(!continue_decryption(shared)){break;}
+
+        iter++;
          MTA_get_rand_data(key,key_length);
 
          //try to decrypt password
@@ -103,10 +101,16 @@ void* decryptProcess(void* argument)
         if(success) //if decryption attempt succeeded
         {
             pthread_mutex_lock(&res->lock); 
+            if(shared->decrypted){ //if password was decrypted do nothing
+              pthread_mutex_unlock(&res->lock);
+              continue;
+            }
+
             int valid=is_valid(res->password,shared->original_pass,password_length); //check if decrypted password matches the real one
-            //CHANGED ORIGINAL TO ORIGINAL_PASS
+         
             if(valid)
             {
+              printf("[CLIENT #%d]  [INFO]  ",args->id);
               printf("After decryption %s, key guessed %s, sending to server after %d iterations\n",
               res->password,res->last_key,iter);
 
@@ -121,9 +125,6 @@ void* decryptProcess(void* argument)
             //incorrect password
              pthread_mutex_unlock(&res->lock);
         }
-        //check if new password was encrypted
-        if(!continue_decryption(shared,&new_data_avail)){break;}
-        iter++;
       }
     }
     free(args);

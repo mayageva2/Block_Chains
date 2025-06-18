@@ -16,21 +16,21 @@ typedef struct {
     char encrypted[MAX_PASSWORD_LENGTH]; // encrypted password
     char original_pass [MAX_PASSWORD_LENGTH]; //original password
     int length;
-    int new_data; //new_data=1 means new encrypted password available
+    bool new_data; //true means new encrypted password available
     pthread_mutex_t mutex;
     pthread_cond_t cond;
-    bool decrypted; //success flag, decrypted=1 means that the password was decrypted
+    bool decrypted; //success flag, true means that the password was decrypted
 } SharedData;
 
 SharedData shared = {
     .length = 0,
-    .new_data = 0, 
+    .new_data = false, 
     .mutex = PTHREAD_MUTEX_INITIALIZER,
     .cond = PTHREAD_COND_INITIALIZER,
-    .decrypted = false //CHANGED THIS
+    .decrypted = false//CHANGED THIS - changed:)
 };
 
-//Global arguments-??
+//Global arguments - INITIALIZE?
 int password_length = 32;
 int num_decrypters = 1;
 int timeout_seconds = 0;
@@ -47,13 +47,13 @@ void generate_printable_password(char *password, int length) {
     }
 }
 
-// Encrypt password with MTA encrypt -I DON'T KNOW WHAT IS THE STATUS BUT BESIDES THIS, ITS OK
+// Encrypt password with MTA encrypt -I DON'T KNOW WHAT IS THE STATUS BUT BESIDES THIS, ITS OK -
+//status=1 means password was successfully encrypted
 void encrypt_password(char *password,char *key, char *encrypted, int length, int key_length) 
 {
     unsigned int out_len = length;
 
     MTA_CRYPT_RET_STATUS status = MTA_encrypt(key,key_length, password, length, encrypted, &out_len);
-
 }
 
 // Encrypter thread function
@@ -63,19 +63,27 @@ void *encrypter(void *arg) {
     char encrypted[MAX_PASSWORD_LENGTH];
 
     while (running) {
+        // Reset new_data flag before creating a new password
+        pthread_mutex_lock(&shared.mutex);
+        shared.new_data = false;
+        pthread_mutex_unlock(&shared.mutex);
+    
+
         generate_printable_password(password, password_length);
         MTA_get_rand_data(key, password_length / 8);
         encrypt_password(password, key, encrypted, password_length, password_length / 8);
 
-        //GAL - SHOULD I STEAL THE SHARED DATA AND PRINT THE PASSWORD AND KEY LIKE GABI DID, HERE?
+        //GAL - SHOULD I STEAL THE SHARED DATA AND PRINT THE PASSWORD AND KEY LIKE GABI DID, HERE? 
+        //vika- i think we should make it like in the example so yes
         //MAYBE ALSO MENTION THE NUMBER OF THE THREAD?
 
         // Write encrypted password to shared buffer
+        
         pthread_mutex_lock(&shared.mutex);
         memcpy(shared.original_pass, password, password_length);
         memcpy(shared.encrypted, encrypted, password_length);
         shared.length = password_length;
-        shared.new_data = 1; //new encrypted password available
+        shared.new_data = true; //new encrypted password available
         shared.decrypted = false; //encrypted password wasn't decrypted
         pthread_cond_broadcast(&shared.cond);
         pthread_mutex_unlock(&shared.mutex);
