@@ -1,7 +1,7 @@
 # Variables declaration
 TARGET_NAME = encrypt.out
-IDIR = ./tmp_deb/usr/include
-LDIR = ./tmp_deb/usr/lib/x86_64-linux-gnu
+IDIR = /usr/include
+LDIR = /usr/lib/x86_64-linux-gnu
 CC = gcc
 CFLAGS = -I$(IDIR)
 LIBS = -L$(LDIR) -lmta_crypt -lmta_rand -lpthread
