@@ -44,10 +44,10 @@ bool decryption_attempt(char* encrypted, unsigned int enc_len, char* key, unsign
 bool continue_decryption(SharedData* shared)
 {
    pthread_mutex_lock(&shared->mutex);
-   bool was_solved = shared->decrypted; //password was decrypted
+   bool was_solved = shared->decrypted; //Password was decrypted
    pthread_mutex_unlock(&shared->mutex); 
 
-   return !was_solved; //continue descryption
+   return !was_solved; //Continue descryption
 }
 
 void* decryptProcess(void* argument)
@@ -94,13 +94,13 @@ void* decryptProcess(void* argument)
          
             if(valid)
             {
-              printf("[CLIENT #%d]  [INFO]  ",args->id);
+              printf("[Decrypter #%d]  [INFO]  ",args->id);
               printf("After decryption %s, key guessed %s, sending to server after %d iterations\n",
               res->password,res->last_key,iter);
 
               pthread_mutex_lock(&shared->mutex);
               shared->decrypted = true; //Mark password as decrypted
-              //NO NEED FOR shared->new_data = false; ? -Gal
+              shared->new_data = false;
               pthread_cond_signal(&shared->cond); //Signal encryptor to proceed
               pthread_mutex_unlock(&shared->mutex);
               pthread_mutex_unlock(&res->lock);
