@@ -23,25 +23,37 @@ int main(int argc, char *argv[])
         {"timeout", required_argument, 0, 't'},
         {0, 0, 0, 0}
     };
-
+    
+    int got_n = 0, got_l = 0;
     int opt;
     while ((opt = getopt_long(argc, argv, "n:l:t:", long_options, NULL)) != -1) {
         switch (opt) {
             case 'n':
                 num_decrypters = atoi(optarg);
+                got_n = 1;
                 break;
             case 'l':
                 password_length = atoi(optarg);
+                got_l = 1;
                 break;
             case 't':
                 timeout_seconds = atoi(optarg);
                 break;
             default:
-                fprintf(stderr, "Usage: %s -n <num-decrypters> -l <password-length> [-t <timeout>]\n", argv[0]);
                 exit(EXIT_FAILURE);
         }
     }
 
+   if (!got_n) {
+     fprintf(stderr, "Missing num of decrypters.\n");
+     exit(EXIT_FAILURE);
+   } 
+   else if(!got_l)
+   {
+    fprintf(stderr, "Missing length of password.\n");
+    exit(EXIT_FAILURE);
+   }
+   
     if (password_length <= 0 || password_length % 8 != 0 || password_length > MAX_PASSWORD_LENGTH) {
         fprintf(stderr, "Password length must be > 0, divisible by 8, and <= %d.\n", MAX_PASSWORD_LENGTH);
         exit(EXIT_FAILURE);
