@@ -5,6 +5,7 @@
 #include <string.h>
 #include "encrypt.h"
 #include "decrypt.h"
+#include <mta_crypt.h> 
 
 //Main
 int main(int argc, char *argv[]) 

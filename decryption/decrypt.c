@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h> 
 #include <ctype.h>
 #include <pthread.h>
+#include <mta_crypt.h>
 #include <mta_rand.h>
 #include "decrypt.h"        
 
