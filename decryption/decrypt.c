@@ -83,7 +83,7 @@ void* decryptProcess(void* argument)
          MTA_get_rand_data(key,key_length);
 
          //Try to decrypt password
-         bool success= decryption_attempt(encrypted_local,password_length,key,key_length,res);
+         bool success = decryption_attempt(encrypted_local,password_length,key,key_length,res);
         if(success) //If decryption attempt succeeded
         {
             pthread_mutex_lock(&res->lock); 
@@ -126,9 +126,9 @@ pthread_t* create_decrypter_threads(int num,SharedData* shared,DecryptionResult*
         exit(1);
     }
 
-    for(int i=0;i<num;i++) //Create num decryptors
+    for(int i=0;i<num;i++) //Create num decrypters
     {
-      Decrypter* args = malloc(sizeof(Decrypter)); //Decryptors arguments
+      Decrypter* args = malloc(sizeof(Decrypter)); //Decrypters arguments
       if(!args){
         printf("Failed allocating memory for decryptor");
         exit(1);

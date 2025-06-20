@@ -60,17 +60,18 @@ int main(int argc, char *argv[])
     }
 
     pthread_t encrypter_thread;
-    if(pthread_create(&encrypter_thread, NULL, encrypter, NULL)!=0) //Added memory allocation check
+    if(pthread_create(&encrypter_thread, NULL, encrypter, NULL) != 0) //Added memory allocation check
     {
       printf("Failed allocate memory for encryptor thread");
       exit(1);
     }
 
     //Decrypter threads creation
-   DecryptionResult res_shared={0};
-   pthread_mutex_init(&res_shared.lock,NULL);
-   pthread_cond_init(&res_shared.cond,NULL);
-   pthread_t* decrypter_threads = create_decrypter_threads(num_decrypters,&shared,&res_shared); //Call decryptors
+    DecryptionResult res_shared = {0};
+    pthread_mutex_init(&res_shared.lock,NULL);
+    pthread_cond_init(&res_shared.cond,NULL);
+    shared.new_data = true;
+    pthread_t* decrypter_threads = create_decrypter_threads(num_decrypters, &shared, &res_shared); //Call decryptors
 
     pthread_join(encrypter_thread, NULL);
     //Wait for decryptors work
