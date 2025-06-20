@@ -83,7 +83,7 @@ void *encrypter(void *arg) {
 
         printf("[Encrypter] Generated new password and key. Waiting for decrypters...\n");
 
-        //Wait for timeout or correct decryption - IMPLEMENTED BY GAL
+        //Wait for timeout or correct decryption
        time_t start = time(NULL);
        while (true) {
             sleep(1); //Simulate wait

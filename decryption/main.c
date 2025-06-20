@@ -60,10 +60,9 @@ int main(int argc, char *argv[])
    pthread_cond_init(&res_shared.cond,NULL);
    pthread_t* decrypter_threads = create_decrypter_threads(num_decrypters,&shared,&res_shared); //Call decryptors
 
-
     pthread_join(encrypter_thread, NULL);
     //Wait for decryptors work
-    running=false;
+    running = false;
     pthread_mutex_lock(&shared.mutex);
     pthread_cond_broadcast(&shared.cond);
     pthread_mutex_unlock(&shared.mutex);
