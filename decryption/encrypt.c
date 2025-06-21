@@ -7,6 +7,7 @@
 #include <mta_crypt.h> 
 #include <mta_rand.h>
 #include "encrypt.h"
+#include "decrypt.h"
 
 SharedData shared = {
     .length = 0,
@@ -44,8 +45,8 @@ void encrypt_password(char *password,char *key, char *encrypted, int length, int
 void printEncrypterInfo(char password[], char key [], char encrypted []) {
 
     pthread_t tid = pthread_self();
-    printf("[%lu] ", tid); //Prints encrypter's thread id
-    printf("[Encrypter] New password generated: %.*s, ", password_length, password); //Prints the password decrypted
+    printf("%lu \t", tid); //Prints encrypter's thread id
+    printf("[Encrypter] \t [INFO]   New password generated: %.*s, ", password_length, password); //Prints the password decrypted
     printf("key: %.*s, ", password_length/8, key); //Prints the key used to encrypt
     printf("After encryption: %.*s", password_length, encrypted); //Prints the encrypted password
     printf("\n");
@@ -53,9 +54,11 @@ void printEncrypterInfo(char password[], char key [], char encrypted []) {
 
 // Encrypter thread function
 void *encrypter(void *arg) {
+    DecryptionResult* res = (DecryptionResult*) arg;
     char password[MAX_PASSWORD_LENGTH];
     char key[MAX_PASSWORD_LENGTH / 8];
     char encrypted[MAX_PASSWORD_LENGTH];
+    pthread_t tid = pthread_self();
 
     while (running) {
         //Reset new_data flag before creating a new password
@@ -81,7 +84,8 @@ void *encrypter(void *arg) {
         pthread_cond_broadcast(&shared.cond);
         pthread_mutex_unlock(&shared.mutex);
 
-        printf("[Encrypter] Generated new password and key. Waiting for decrypters...\n");
+        printf("%lu \t", tid); //Prints encrypter's thread id
+        printf("[Encrypter] \t [INFO]   Generated new password and key. Waiting for decrypters...\n");
 
         //Wait for timeout or correct decryption
        time_t start = time(NULL);
@@ -89,17 +93,23 @@ void *encrypter(void *arg) {
             sleep(1); //Simulate wait
 
             pthread_mutex_lock(&shared.mutex);
+            char received[MAX_PASSWORD_LENGTH];
+            memcpy(received, res->password, password_length);
+            received[password_length] = '\0';
+            int dec_id = res->decrypter_id;
             bool done = shared.decrypted;
             pthread_mutex_unlock(&shared.mutex);
 
             if (done) {
-
-                printf("[Encrypter] Password was successfully decrypted.\n");
+                printf("%lu \t", tid); //Prints encrypter's thread id      
+                printf("[Encrypter] \t [OK]     Password was successfully decrypted, by [Decrypter #%d].", dec_id);
+                printf("Recieved: %s, Is: %s\n", received,password);
                 break;
             }
 
             if (timeout_seconds > 0 && time(NULL) - start >= timeout_seconds) {
-                printf("[Encrypter] Timeout expired. Generating new password.\n");
+                printf("%lu \t", tid); //Prints encrypter's thread id 
+                printf("[Encrypter] \t [ERROR]  Timeout expired(%d seconds). Generating new password.\n", timeout_seconds);
                 break;
             }
        

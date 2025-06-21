@@ -96,7 +96,10 @@ void* decryptProcess(void* argument)
          
             if(valid)
             {
-              printf("[Decrypter #%d]  [INFO]  ",args->id);
+              res->decrypter_id = args->id;
+              pthread_t tid = pthread_self();
+              printf("%lu \t", tid); //Prints decrypter's thread id
+              printf("[Decrypter #%d] \t [INFO]   ",args->id);
               printf("After decryption %s, key guessed %s, sending to server after %d iterations\n",
               res->password,res->last_key,iter);
 

@@ -10,6 +10,7 @@ typedef struct {
     char last_key[LAST_KEY_LENGTH];           //Last key checked
     pthread_mutex_t lock;                     //Read and write lock
     pthread_cond_t cond;                      //New attempt signal
+    int decrypter_id;                         //decypher id
 } DecryptionResult;
 
 typedef struct{
