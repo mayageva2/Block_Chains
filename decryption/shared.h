@@ -7,20 +7,19 @@
 
 typedef struct {
     char encrypted[MAX_PASSWORD_LENGTH]; //Encrypted password
-    char guess [MAX_PASSWORD_LENGTH]; //Guessed password by a decrypter
     int length;
 
     bool new_data; //True means new encrypted password available
+    bool decrypted; //Success flag, true means that the password was decrypted
+
+    int guesser_id;
+    char guess [MAX_PASSWORD_LENGTH]; //Guessed password by a decrypter
+
     bool guess_pending;
-    bool guess_result;
+    pthread_cond_t guess_cond;
 
     pthread_mutex_t mutex;
     pthread_cond_t cond;
-    pthread_mutex_t guess_mutex;
-    pthread_cond_t guess_cond;
-
-    bool decrypted; //Success flag, true means that the password was decrypted
-    int guesser_id;
 } SharedData;
 
 //Global variables

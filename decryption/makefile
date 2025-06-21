@@ -4,7 +4,7 @@ IDIR = /usr/include
 LDIR = /usr/lib/x86_64-linux-gnu
 CC = gcc
 CFLAGS = -I$(IDIR)
-LIBS = -L$(LDIR) -lmta_crypt -lmta_rand -lpthread
+LIBS = -L$(LDIR) -lmta_crypt -lmta_rand -lpthread -lrt
 
 ODIR ?= build
 

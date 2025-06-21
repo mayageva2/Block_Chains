@@ -3,9 +3,26 @@
 #include <getopt.h>
 #include <pthread.h>
 #include <string.h>
+#include <mta_crypt.h> 
+#include "shared.h"
 #include "encrypt.h"
 #include "decrypt.h"
-#include <mta_crypt.h> 
+
+//Global variables
+SharedData shared = {
+    .length = 0,
+    .new_data = false,
+    .decrypted = false,
+    .guess_pending = false,
+    .guesser_id = -1,
+    .mutex = PTHREAD_MUTEX_INITIALIZER,
+    .cond = PTHREAD_COND_INITIALIZER,
+    .guess_cond = PTHREAD_COND_INITIALIZER 
+};
+int password_length;
+int num_decrypters;
+int timeout_seconds = 0;
+bool running = true;
 
 //Main
 int main(int argc, char *argv[]) 
@@ -60,35 +77,28 @@ int main(int argc, char *argv[])
     }
 
     //Decrypter threads creation
-    DecryptionResult res_shared = {0};
-    pthread_mutex_init(&res_shared.lock,NULL);
-    pthread_cond_init(&res_shared.cond,NULL);
-
-    pthread_t* decrypter_threads = create_decrypter_threads(num_decrypters, &shared, &res_shared); //Call decryptors
+    pthread_t* decrypter_threads = create_decrypter_threads(num_decrypters); //Call decryptors
 
      pthread_t encrypter_thread;
-    if(pthread_create(&encrypter_thread, NULL, encrypter, &res_shared) != 0) //Added memory allocation check
+    if(pthread_create(&encrypter_thread, NULL, encrypter, NULL) != 0) //Added memory allocation check
     {
       printf("Failed allocate memory for encryptor thread");
       exit(1);
     }
 
     pthread_join(encrypter_thread, NULL);
+
     //Wait for decryptors work
     running = false;
     pthread_mutex_lock(&shared.mutex);
     pthread_cond_broadcast(&shared.cond);
+    pthread_cond_broadcast(&shared.guess_cond);
     pthread_mutex_unlock(&shared.mutex);
 
-    pthread_mutex_lock(&shared.guess_mutex);
-    pthread_cond_broadcast(&shared.guess_cond);
-    pthread_mutex_unlock(&shared.guess_mutex);
-
-    for(int i=0;i<num_decrypters;i++){
+    for(int i = 0 ; i < num_decrypters ; i++){
         pthread_join(decrypter_threads[i],NULL);
     }
 
     free(decrypter_threads); 
-    
     return 0; 
 }
