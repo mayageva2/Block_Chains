@@ -52,7 +52,7 @@ void printEncrypterInfo(char password[], char key [], char encrypted []) {
     printf("\n");
 }
 
-// Encrypter thread function
+//Encrypter thread function
 void *encrypter(void *arg) {
     DecryptionResult* res = (DecryptionResult*) arg;
     char password[MAX_PASSWORD_LENGTH];
