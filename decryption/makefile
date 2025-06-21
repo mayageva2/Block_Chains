@@ -15,10 +15,10 @@ OUT := $(ODIR)/$(TARGET_NAME)
 
 $(ODIR)/%.o: %.c
 	mkdir -p $(ODIR)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -g -c -o $@ $< $(CFLAGS)
 
 $(ODIR)/$(TARGET_NAME): $(OBJS)
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
+	$(CC) -g -o $@ $^ $(CFLAGS) $(LIBS)
 
 # Default target
 all: $(OUT)

@@ -53,9 +53,18 @@ void* decryptProcess(void* argument)
     while(running) //Continue as long as encryptor sending passwords
     {
       pthread_mutex_lock(&shared->mutex); 
+
+      while (!shared->new_data)
+          pthread_cond_wait(&shared->cond, &shared->mutex);
+
       if (!running) {
-        pthread_mutex_unlock(&shared->mutex);
-        break;
+          pthread_mutex_unlock(&shared->mutex);
+          break;
+      }
+
+      if (shared->decrypted) {
+          pthread_mutex_unlock(&shared->mutex);
+          continue;
       }
 
       char encrypted_local [MAX_PASSWORD_LENGTH] = {};

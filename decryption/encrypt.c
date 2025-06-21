@@ -80,11 +80,12 @@ void *encrypter(void *arg) {
 
     while (running) {
 
+        pthread_mutex_lock(&shared.mutex);
+
         generate_printable_password(password, password_length);
         MTA_get_rand_data(key, password_length / 8);
         encrypt_password(password, key, encrypted, password_length, password_length / 8);
 
-        pthread_mutex_lock(&shared.mutex);
         printEncrypterNewPassword(tid, password, key, encrypted); //Prints new password info 
 
         //Write encrypted password to shared buffer
@@ -92,8 +93,14 @@ void *encrypter(void *arg) {
         shared.length = password_length;
         shared.new_data = true; //New encrypted password available
         shared.decrypted = false; //Encrypted password wasn't decrypted
+        shared.guess_pending = false;
+        shared.guess_result = false;
         pthread_cond_broadcast(&shared.cond);
         pthread_mutex_unlock(&shared.mutex);
+
+        pthread_mutex_lock(&shared.guess_mutex);
+        pthread_cond_broadcast(&shared.guess_cond);
+        pthread_mutex_unlock(&shared.guess_mutex);
 
         //Wait for timeout or correct decryption
        time_t start = time(NULL);
@@ -112,18 +119,28 @@ void *encrypter(void *arg) {
                 pthread_mutex_lock(&shared.mutex);
                 shared.decrypted = true;
                 shared.new_data = false;
+                printSuccessfulDecryption(tid, password);
+                pthread_cond_broadcast(&shared.cond);
                 pthread_mutex_unlock(&shared.mutex);
 
-                printSuccessfulDecryption(tid, password);
+                pthread_mutex_lock(&shared.guess_mutex);
+                shared.guess_pending = false; //Let decrypters proceed
+                pthread_cond_broadcast(&shared.guess_cond);
+                pthread_mutex_unlock(&shared.guess_mutex);
                 break;
             }
 
-            if (timeout_seconds > 0 && time(NULL) - start >= timeout_seconds)
+            if (timeout_seconds > 0 && time(NULL) - start >= timeout_seconds) {
                 printTimeout(tid, timeout_seconds);
-       
+
+                //Must reset shared state and notify decrypters
+                pthread_mutex_lock(&shared.guess_mutex);
+                shared.guess_pending = false;
+                pthread_cond_broadcast(&shared.guess_cond);
+                pthread_mutex_unlock(&shared.guess_mutex);
+                break;
+            }      
         }
-
     }
-
     return NULL;
 }
