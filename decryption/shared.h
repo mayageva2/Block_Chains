@@ -6,13 +6,21 @@
 #define MAX_PASSWORD_LENGTH 1024
 
 typedef struct {
-    char encrypted[MAX_PASSWORD_LENGTH]; // encrypted password
-    char original_pass [MAX_PASSWORD_LENGTH]; //original password
+    char encrypted[MAX_PASSWORD_LENGTH]; //Encrypted password
+    char guess [MAX_PASSWORD_LENGTH]; //Guessed password by a decrypter
     int length;
-    bool new_data; //true means new encrypted password available
+
+    bool new_data; //True means new encrypted password available
+    bool guess_pending;
+    bool guess_result;
+
     pthread_mutex_t mutex;
     pthread_cond_t cond;
-    bool decrypted; //success flag, true means that the password was decrypted
+    pthread_mutex_t guess_mutex;
+    pthread_cond_t guess_cond;
+
+    bool decrypted; //Success flag, true means that the password was decrypted
+    int guesser_id;
 } SharedData;
 
 //Global variables

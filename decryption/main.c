@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
     DecryptionResult res_shared = {0};
     pthread_mutex_init(&res_shared.lock,NULL);
     pthread_cond_init(&res_shared.cond,NULL);
-    shared.new_data = false;
+
     pthread_t* decrypter_threads = create_decrypter_threads(num_decrypters, &shared, &res_shared); //Call decryptors
 
      pthread_t encrypter_thread;
@@ -79,6 +79,10 @@ int main(int argc, char *argv[])
     pthread_mutex_lock(&shared.mutex);
     pthread_cond_broadcast(&shared.cond);
     pthread_mutex_unlock(&shared.mutex);
+
+    pthread_mutex_lock(&shared.guess_mutex);
+    pthread_cond_broadcast(&shared.guess_cond);
+    pthread_mutex_unlock(&shared.guess_mutex);
 
     for(int i=0;i<num_decrypters;i++){
         pthread_join(decrypter_threads[i],NULL);
