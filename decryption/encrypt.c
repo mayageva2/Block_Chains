@@ -98,10 +98,6 @@ void *encrypter(void *arg) {
         pthread_cond_broadcast(&shared.cond);
         pthread_mutex_unlock(&shared.mutex);
 
-        pthread_mutex_lock(&shared.guess_mutex);
-        pthread_cond_broadcast(&shared.guess_cond);
-        pthread_mutex_unlock(&shared.guess_mutex);
-
         //Wait for timeout or correct decryption
        time_t start = time(NULL);
        while (running && !shared.decrypted) {

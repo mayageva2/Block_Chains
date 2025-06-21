@@ -75,6 +75,12 @@ void* decryptProcess(void* argument)
       
       while(running)//Brute-force loop
       { 
+        pthread_mutex_lock(&shared->mutex);
+        if (shared->new_data) { //Case: stop brute-force loop if a new password arrived
+          pthread_mutex_unlock(&shared->mutex);
+          break;
+        }
+        pthread_mutex_unlock(&shared->mutex);
 
         iter++;
         MTA_get_rand_data(key,key_len);
