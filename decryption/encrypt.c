@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE_199309L
+#define _POSIX_C_SOURCE 199309L
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
@@ -87,7 +87,7 @@ void *encrypter(void *arg) {
     pthread_t tid = pthread_self();
 
     while (running) {
-
+        memcpy(shared.previous_password, password, password_length);
         generate_printable_password(password, password_length);
         MTA_get_rand_data(key, password_length / 8);
         encrypt_password(password, key, encrypted, password_length, password_length / 8);
@@ -152,13 +152,19 @@ void *encrypter(void *arg) {
                     else
                         print_old_pw_guess(tid, decrypter_id, guess_curr); //Prints log of old password guess
                 }
-                else //Case: Wrong guess
-                    print_wrong_guess(tid, decrypter_id, guess_curr, password);
+                else {//Case: Wrong guess/Used to be correct but not anymore
+                    bool old_match = (memcmp(guess_curr, shared.previous_password, password_length) == 0);
+                    if (old_match) 
+                        printf("%lu\t[ENCRYPTER]\t[ERROR]\tReceived correct but outdated password from client #%d: (%.*s)\n", tid, decrypter_id, password_length, guess_curr);
+                    else //Wrong guess
+                        print_wrong_guess(tid, decrypter_id, guess_curr, password);
+                }
                     
                 pthread_mutex_unlock(&shared.mutex);
             }
             else
                 pthread_mutex_unlock(&shared.guess_mutex);
+            sleep(2); //// TAKE OFFFFFFF
        }
     return NULL;
 }

@@ -14,6 +14,7 @@ typedef struct {
 
     int guesser_id;
     char guess [MAX_PASSWORD_LENGTH]; //Guessed password by a decrypter
+    char previous_password[MAX_PASSWORD_LENGTH]; //Last guessed password
 
     bool guess_pending;
     pthread_cond_t guess_cond;
