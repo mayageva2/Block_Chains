@@ -24,7 +24,7 @@ This project implements a multi-threaded C program that demonstrates password en
 1. **Clone the Repository**  
    ```bash
    git clone https://github.com/mayageva2/Block_Chains.git
-   cd decryption
+   cd Block_Chains
    ```
 
 2. **Build the Project**  
