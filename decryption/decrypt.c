@@ -42,7 +42,7 @@ void print_send_log(int id, char* guess, char* key_used, int it) {
 //This function is executed by each decrypter thread and performs brute-force decryption attempts
 void* decryptProcess(void* arg)
 {
-    int id = (intptr_t)arg;
+    int id = (int)(intptr_t)arg;
     char encrypted_local [MAX_PASSWORD_LENGTH] = {};
     char key[MAX_PASSWORD_LENGTH/8] = {};
     char guess[MAX_PASSWORD_LENGTH] = {};
@@ -100,7 +100,7 @@ pthread_t* create_decrypter_threads(int num)
     for (int i = 0; i < num; i++) //Create num decrypters
     {
         //Create thread and run decryptProcess func with args
-        if (pthread_create(&threads[i], NULL, decryptProcess, (void*)i) != 0) {
+        if (pthread_create(&threads[i], NULL, decryptProcess, (void*)(intptr_t)i) != 0) {
             printf("Failed creating pthread\n");
             exit(1);
         }

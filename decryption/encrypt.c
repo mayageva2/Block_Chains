@@ -66,7 +66,7 @@ void print_timeout(pthread_t tid) {
 //This function prints a log when a decrypter submits a correct but outdated password
 void print_old_pw_guess(pthread_t tid, int decrypter_id, char* guess) {
 
-    printf("%lu\t[ENCRYPTER]\t[ERROR]\tPassword received from client #%d (%.*s) is correct but old\n",
+    printf("%lu\t[ENCRYPTER]\t[ERROR]\tReceived correct but outdated password from client #%d: (%.*s)\n",
     tid,
     decrypter_id,
     password_length, guess);
@@ -158,7 +158,7 @@ void *encrypter(void *arg) {
             else {
                 bool old_match = (memcmp(guess_curr, shared.previous_password, password_length) == 0);
                 if (old_match) //Case: Old password guess
-                    printf("%lu\t[ENCRYPTER]\t[ERROR]\tReceived correct but outdated password from client #%d: (%.*s)\n", tid, decrypter_id, password_length, guess_curr);
+                    print_old_pw_guess(tid, decrypter_id, guess_curr);
                 else //Case: Wrong guess
                     print_wrong_guess(tid, decrypter_id, guess_curr, password);
             }
