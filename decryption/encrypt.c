@@ -17,25 +17,25 @@ extern int num_decrypters;
 extern int timeout_seconds;
 extern bool running;
 
-//Helper to generate a printable random password
+//This function generates a printable password and writes it into the provided buffer; Helper function
 void generate_printable_password(char *password, int length) {
-    for (int i=0; i< length; ++i) {
+
+    for (int i = 0; i < length; ++i) {
         char c;
-        do {
-            c = MTA_get_rand_char();
-        } while (!isprint(c));
+        do { c = MTA_get_rand_char(); }
+        while (!isprint(c));
         password[i] = c;
     }
 }
 
-//Encrypt password with MTA encrypt
-void encrypt_password(char *password,char *key, char *encrypted, int length, int key_length) 
-{
+//This function encrypts a password using MTA encryption with the given key and key length
+void encrypt_password(char *password,char *key, char *encrypted, int length, int key_length) {
+
     unsigned int out_len = length;
     MTA_encrypt(key,key_length, password, length, encrypted, &out_len);
 }
 
-//Prints a log when Encrypter generates new password information
+//This function prints a log when a new password is generated
 void print_new_pw(pthread_t tid, char* password, char* key, char* encrypted) {
 
     printf("%lu\t[ENCRYPTER]\t[INFO]\tNew password generated: %.*s, key: %.*s, After encryption: %.*s\n",
@@ -45,7 +45,7 @@ void print_new_pw(pthread_t tid, char* password, char* key, char* encrypted) {
     password_length, encrypted);
 }
 
-//Prints a log when the password was decrypted
+//This function prints a success log when a correct password guess is received from a decrypter
 void print_success(pthread_t tid, char* password) {
 
     printf("%lu\t[ENCRYPTER]\t[OK]\tPassword decrypted successfully by client #%d, received (%.*s), is (%.*s)\n",
@@ -55,6 +55,7 @@ void print_success(pthread_t tid, char* password) {
     password_length, password);
 }
 
+//This function prints an error log when no password guess is received within the configured timeout
 void print_timeout(pthread_t tid) {
 
     printf("%lu\t[ENCRYPTER]\t[ERROR]\tNo password received during configured timeout period (%d seconds), regenerating password\n",
@@ -62,6 +63,7 @@ void print_timeout(pthread_t tid) {
     timeout_seconds);
 }
 
+//This function prints a log when a decrypter submits a correct but outdated password
 void print_old_pw_guess(pthread_t tid, int decrypter_id, char* guess) {
 
     printf("%lu\t[ENCRYPTER]\t[ERROR]\tPassword received from client #%d (%.*s) is correct but old\n",
@@ -70,6 +72,7 @@ void print_old_pw_guess(pthread_t tid, int decrypter_id, char* guess) {
     password_length, guess);
 }
 
+//This function prints an error log when a wrong password guess is submitted by a decrypter
 void print_wrong_guess(pthread_t tid, int decrypter_id, char* guess, char* password) {
 
     printf("%lu\t[ENCRYPTER]\t[ERROR]\tWrong password received from client #%d (%.*s), should be (%.*s)\n",
@@ -79,7 +82,7 @@ void print_wrong_guess(pthread_t tid, int decrypter_id, char* guess, char* passw
     password_length, password);
 }
 
-//Encrypter thread function
+//This function is executed by the encrypter thread, and coordinates password generation and validation; Encrypter thread function
 void *encrypter(void *arg) {
     char password[MAX_PASSWORD_LENGTH];
     char key[MAX_PASSWORD_LENGTH / 8];
@@ -91,7 +94,7 @@ void *encrypter(void *arg) {
         generate_printable_password(password, password_length);
         MTA_get_rand_data(key, password_length / 8);
         encrypt_password(password, key, encrypted, password_length, password_length / 8);
-        
+
         //Write encrypted password to shared buffer
         pthread_mutex_lock(&shared.mutex);
         memcpy(shared.encrypted, encrypted, password_length);
@@ -105,14 +108,14 @@ void *encrypter(void *arg) {
         print_new_pw(tid, password, key, encrypted); //Prints new password info
 
         //Wait for timeout or correct decryption
-       time_t start = time(NULL);
-       
-       pthread_mutex_lock(&shared.guess_mutex);
+        time_t start = time(NULL);
+
+        pthread_mutex_lock(&shared.guess_mutex);
 
         if (timeout_seconds > 0) {
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
-        ts.tv_sec += timeout_seconds;
+            struct timespec ts;
+            clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_sec += timeout_seconds;
 
             while (!shared.guess_pending && !shared.decrypted) {
                 int rc = pthread_cond_timedwait(&shared.guess_cond, &shared.guess_mutex, &ts);
@@ -120,7 +123,7 @@ void *encrypter(void *arg) {
                 if (rc == ETIMEDOUT) { //Case: timeout
                     print_timeout(tid);
                     break;
-                }  
+                }
             }
         }
         else { //Case: no -t flag was given
@@ -128,42 +131,42 @@ void *encrypter(void *arg) {
                 pthread_cond_wait(&shared.guess_cond, &shared.guess_mutex);
         }
 
-            
-            if (shared.guess_pending) //Case: a guess arrived before timeout
-            {
-                int decrypter_id = shared.guesser_id;
-                char guess_curr[MAX_PASSWORD_LENGTH] = {};
-                memcpy(guess_curr, shared.guess, password_length);
 
-                //Mark the slot free for the next guess
-                shared.guess_pending = false;
-                pthread_cond_broadcast(&shared.guess_cond);
-                pthread_mutex_unlock(&shared.guess_mutex);
+        if (shared.guess_pending) //Case: a guess arrived before timeout
+        {
+            int decrypter_id = shared.guesser_id;
+            char guess_curr[MAX_PASSWORD_LENGTH] = {};
+            memcpy(guess_curr, shared.guess, password_length);
 
-                bool match = (memcmp(guess_curr, password, password_length) == 0);
+            //Mark the slot free for the next guess
+            shared.guess_pending = false;
+            pthread_cond_broadcast(&shared.guess_cond);
+            pthread_mutex_unlock(&shared.guess_mutex);
 
-                pthread_mutex_lock(&shared.mutex);
-                if (match) {
-                    if (!shared.decrypted) {
-                        shared.decrypted = true;
-                        print_success(tid, password);
-                        pthread_cond_broadcast(&shared.cond);
-                    }
-                    else
-                        print_old_pw_guess(tid, decrypter_id, guess_curr); //Prints log of old password guess
+            bool match = (memcmp(guess_curr, password, password_length) == 0);
+
+            pthread_mutex_lock(&shared.mutex);
+            if (match) {
+                if (!shared.decrypted) {
+                    shared.decrypted = true;
+                    print_success(tid, password);
+                    pthread_cond_broadcast(&shared.cond);
                 }
-                else {//Case: Wrong guess/Used to be correct but not anymore
-                    bool old_match = (memcmp(guess_curr, shared.previous_password, password_length) == 0);
-                    if (old_match) 
-                        printf("%lu\t[ENCRYPTER]\t[ERROR]\tReceived correct but outdated password from client #%d: (%.*s)\n", tid, decrypter_id, password_length, guess_curr);
-                    else //Wrong guess
-                        print_wrong_guess(tid, decrypter_id, guess_curr, password);
-                }
-                    
-                pthread_mutex_unlock(&shared.mutex);
+                else
+                    print_old_pw_guess(tid, decrypter_id, guess_curr); //Prints log of old password guess
             }
-            else
-                pthread_mutex_unlock(&shared.guess_mutex);
-       }
+            else {
+                bool old_match = (memcmp(guess_curr, shared.previous_password, password_length) == 0);
+                if (old_match) //Case: Old password guess
+                    printf("%lu\t[ENCRYPTER]\t[ERROR]\tReceived correct but outdated password from client #%d: (%.*s)\n", tid, decrypter_id, password_length, guess_curr);
+                else //Case: Wrong guess
+                    print_wrong_guess(tid, decrypter_id, guess_curr, password);
+            }
+
+            pthread_mutex_unlock(&shared.mutex);
+        }
+        else
+            pthread_mutex_unlock(&shared.guess_mutex);
+    }
     return NULL;
 }

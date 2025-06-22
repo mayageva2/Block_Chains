@@ -24,7 +24,8 @@ int num_decrypters;
 int timeout_seconds = 0;
 bool running = true;
 
-void print_usage() { //Prints usage message
+//This function prints the correct usage of the program when incorrect or missing arguments are provided
+void print_usage() {
     printf("Usage: encrypt.out [-t|--timeout seconds] <-n|--num-of-decrypters <number>> <-l|--password-length <length>>\n");
 }
 
@@ -36,7 +37,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Failed to initialize MTA crypto library\n");
         return 1;
     }
-
 
     static struct option long_options[] = {
         {"num-of-decrypters", required_argument, 0, 'n'},
@@ -67,45 +67,44 @@ int main(int argc, char *argv[])
     }
 
    if (!got_n) {
-     fprintf(stderr, "Missing num of decrypters.\n");
-     print_usage();
-     exit(EXIT_FAILURE);
+       fprintf(stderr, "Missing num of decrypters.\n");
+       print_usage();
+       exit(EXIT_FAILURE);
    } 
    else if(!got_l)
    {
-    fprintf(stderr, "Missing length of password.\n");
-    print_usage();
-    exit(EXIT_FAILURE);
+       fprintf(stderr, "Missing length of password.\n");
+       print_usage();
+       exit(EXIT_FAILURE);
    }
-   
-    if (password_length <= 0 || password_length % 8 != 0 || password_length > MAX_PASSWORD_LENGTH) {
-        fprintf(stderr, "Password length must be > 0, divisible by 8, and <= %d.\n", MAX_PASSWORD_LENGTH);
-        exit(EXIT_FAILURE);
-    }
 
-    //Decrypter threads creation
-    pthread_t* decrypter_threads = create_decrypter_threads(num_decrypters); //Call decryptors
+   if (password_length <= 0 || password_length % 8 != 0 || password_length > MAX_PASSWORD_LENGTH) {
+       fprintf(stderr, "Password length must be > 0, divisible by 8, and <= %d.\n", MAX_PASSWORD_LENGTH);
+       exit(EXIT_FAILURE);
+   }
 
-     pthread_t encrypter_thread;
-    if(pthread_create(&encrypter_thread, NULL, encrypter, NULL) != 0) //Added memory allocation check
-    {
-      printf("Failed allocate memory for encryptor thread");
-      exit(1);
-    }
+   //Decrypter threads creation
+   pthread_t* decrypter_threads = create_decrypter_threads(num_decrypters); //Call decryptors
 
-    pthread_join(encrypter_thread, NULL);
+   pthread_t encrypter_thread;
+   if (pthread_create(&encrypter_thread, NULL, encrypter, NULL) != 0) //Added memory allocation check
+   {
+       printf("Failed allocate memory for encryptor thread");
+       exit(1);
+   }
 
-    //Wait for decryptors work
-    running = false;
-    pthread_mutex_lock(&shared.mutex);
-    pthread_cond_broadcast(&shared.cond);
-    pthread_cond_broadcast(&shared.guess_cond);
-    pthread_mutex_unlock(&shared.mutex);
+   pthread_join(encrypter_thread, NULL);
 
-    for(int i = 0 ; i < num_decrypters ; i++){
-        pthread_join(decrypter_threads[i],NULL);
-    }
+   //Wait for decryptors work
+   running = false;
+   pthread_mutex_lock(&shared.mutex);
+   pthread_cond_broadcast(&shared.cond);
+   pthread_cond_broadcast(&shared.guess_cond);
+   pthread_mutex_unlock(&shared.mutex);
 
-    free(decrypter_threads); 
-    return 0; 
+   for (int i = 0; i < num_decrypters; i++) 
+       pthread_join(decrypter_threads[i], NULL);
+
+   free(decrypter_threads);
+   return 0;
 }
