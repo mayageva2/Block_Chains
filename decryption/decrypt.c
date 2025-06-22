@@ -51,12 +51,18 @@ void* decryptProcess(void* arg)
     {
         pthread_mutex_lock(&shared.mutex);
 
-        while (!shared.new_data && running)
+        //Makes sure the decryptors wait for first password
+        if (!shared.new_data && shared.length == 0 && running)
             pthread_cond_wait(&shared.cond, &shared.mutex);
 
         if (!running) {
             pthread_mutex_unlock(&shared.mutex);
             break;
+        }
+
+        if (shared.new_data) {
+            memcpy(encrypted_local, shared.encrypted, shared.length);
+            shared.new_data = false;
         }
 
         memcpy(encrypted_local, shared.encrypted, shared.length);
