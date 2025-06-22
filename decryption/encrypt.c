@@ -116,7 +116,7 @@ void *encrypter(void *arg) {
             while (!shared.guess_pending && !shared.decrypted) {
                 int rc = pthread_cond_timedwait(&shared.guess_cond, &shared.mutex, &ts);
 
-                if (rc = ETIMEDOUT) { //Case: timeout
+                if (rc == ETIMEDOUT) { //Case: timeout
                 break;
             }
                 
