@@ -42,7 +42,6 @@ void* decryptProcess(void* arg)
     int id = (int)arg;
     char encrypted_local [MAX_PASSWORD_LENGTH] = {};
     char key[MAX_PASSWORD_LENGTH/8] = {};
-    int iter = 0; //Counter for number iterations in brute-force loop
     char guess[MAX_PASSWORD_LENGTH] = {};
 
     while(running) //Continue as long as encryptor sending passwords
@@ -61,7 +60,7 @@ void* decryptProcess(void* arg)
       shared.new_data = false;
       pthread_mutex_unlock(&shared.mutex);
 
-      for (int iter = 1 ; running ; iter++) //Brute-force loop
+      for (int iter = 1 ; running ; iter++) //Brute-force loop; counter for number iterations in brute-force loop
       {
         MTA_get_rand_data(key,password_length/8);
         if (!try_decrypt(encrypted_local, password_length, key, password_length/8, guess))
@@ -69,15 +68,15 @@ void* decryptProcess(void* arg)
 
           //From now on, decryption attempt can be made
           //Send candidate guess
-          pthread_mutex_lock(&shared.mutex);
+          pthread_mutex_lock(&shared.guess_mutex);
           while (shared.guess_pending) //Case: encrypter is busy with another decrypter
-            pthread_cond_wait(&shared.guess_cond, &shared.mutex);
+            pthread_cond_wait(&shared.guess_cond, &shared.guess_mutex);
 
           shared.guess_pending = true;
           shared.guesser_id = id;
           memcpy(shared.guess, guess, password_length);
           pthread_cond_signal(&shared.guess_cond);
-          pthread_mutex_unlock(&shared.mutex);
+          pthread_mutex_unlock(&shared.guess_mutex);
 
           print_send_log(id, guess, key, iter); //Prints the send log of the decrypter
           break;

@@ -17,6 +17,7 @@ typedef struct {
 
     bool guess_pending;
     pthread_cond_t guess_cond;
+    pthread_mutex_t guess_mutex;
 
     pthread_mutex_t mutex;
     pthread_cond_t cond;
