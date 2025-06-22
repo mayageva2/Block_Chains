@@ -24,6 +24,10 @@ int num_decrypters;
 int timeout_seconds = 0;
 bool running = true;
 
+void print_usage() { //Prints usage message
+    printf("Usage: encrypt.out [-t|--timeout seconds] <-n|--num-of-decrypters <number>> <-l|--password-length <length>>\n");
+}
+
 //Main
 int main(int argc, char *argv[]) 
 {
@@ -57,17 +61,20 @@ int main(int argc, char *argv[])
                 timeout_seconds = atoi(optarg);
                 break;
             default:
+                print_usage();
                 exit(EXIT_FAILURE);
         }
     }
 
    if (!got_n) {
      fprintf(stderr, "Missing num of decrypters.\n");
+     print_usage();
      exit(EXIT_FAILURE);
    } 
    else if(!got_l)
    {
     fprintf(stderr, "Missing length of password.\n");
+    print_usage();
     exit(EXIT_FAILURE);
    }
    

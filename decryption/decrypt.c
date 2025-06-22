@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h> 
 #include <string.h> 
 #include <ctype.h>
 #include <pthread.h>
@@ -39,7 +40,7 @@ void print_send_log(int id, char* guess, char* key_used, int it) {
 
 void* decryptProcess(void* arg)
 {
-    int id = (int)arg;
+    int id = (intptr_t)arg;
     char encrypted_local [MAX_PASSWORD_LENGTH] = {};
     char key[MAX_PASSWORD_LENGTH/8] = {};
     char guess[MAX_PASSWORD_LENGTH] = {};

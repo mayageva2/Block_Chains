@@ -164,7 +164,6 @@ void *encrypter(void *arg) {
             }
             else
                 pthread_mutex_unlock(&shared.guess_mutex);
-            sleep(2); //// TAKE OFFFFFFF
        }
     return NULL;
 }
