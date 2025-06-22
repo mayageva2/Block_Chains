@@ -39,7 +39,9 @@ This project implements a multi-threaded C program that demonstrates password en
    ./build/encrypt.out -n <num-decrypters> -l <password-length> [-t <timeout-seconds>]
    ```
    
-   - -t is optional
+   - -n | --num-of-decrypters	(Required) Amount of decrypter threads which will be created
+   - -l | --password-length		(Required) Number of characters that will be encrypted
+   - -t | --timeout				(Optional) Time in seconds until server regenerates a password if it didn't receive correctly decrypted password
    
    For example,
    ```bash
