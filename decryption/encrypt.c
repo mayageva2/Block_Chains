@@ -88,46 +88,54 @@ void *encrypter(void *arg) {
     char key[MAX_PASSWORD_LENGTH / 8];
     char encrypted[MAX_PASSWORD_LENGTH];
     pthread_t tid = pthread_self();
+    bool first = true;
 
     while (running) {
         pthread_mutex_lock(&shared.mutex);
-        shared.decrypted = false; //Alert the new password going to be encrypted is not yet decrypted
+        if (first || shared.decrypted) {
+            first = false;
+            shared.decrypted = false; //Alert the new password going to be encrypted is not yet decrypted
 
-        //Copy previous password before regenerating
-        memcpy(shared.previous_password, password, password_length);
-        pthread_mutex_unlock(&shared.mutex);
+            //Copy previous password before regenerating
+            memcpy(shared.previous_password, password, password_length);
+            pthread_mutex_unlock(&shared.mutex);
 
-        generate_printable_password(password, password_length);
-        MTA_get_rand_data(key, password_length / 8);
-        encrypt_password(password, key, encrypted, password_length, password_length / 8);
+            generate_printable_password(password, password_length);
+            MTA_get_rand_data(key, password_length / 8);
+            encrypt_password(password, key, encrypted, password_length, password_length / 8);
 
-        //Write encrypted password to shared buffer
-        pthread_mutex_lock(&shared.mutex);
-        memcpy(shared.encrypted, encrypted, password_length);
-        shared.length = password_length;
-        shared.new_data = true; //New encrypted password available
-        shared.guess_pending = false;
-        pthread_cond_broadcast(&shared.cond);
-        pthread_mutex_unlock(&shared.mutex);
+            //Write encrypted password to shared buffer
+            pthread_mutex_lock(&shared.mutex);
+            memcpy(shared.encrypted, encrypted, password_length);
+            shared.length = password_length;
+            shared.new_data = true; //New encrypted password available
+            shared.guess_pending = false;
+            pthread_cond_broadcast(&shared.cond);
+            pthread_mutex_unlock(&shared.mutex);
 
-        print_new_pw(tid, password, key, encrypted); //Prints new password info
+            print_new_pw(tid, password, key, encrypted); //Prints new password info
+        }
+        else
+            pthread_mutex_unlock(&shared.mutex);
         
+        time_t start = time(NULL);
         pthread_mutex_lock(&shared.guess_mutex);
+
         if (timeout_seconds > 0) {
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);
-            ts.tv_sec += timeout_seconds;
-            int rc = 0;
-            while (!shared.guess_pending && !shared.decrypted && rc != ETIMEDOUT)
-                rc = pthread_cond_timedwait(&shared.guess_cond, &shared.guess_mutex, &ts);
+            ts.tv_sec += timeout_seconds - (time(NULL) - start);
             
-            if (rc == ETIMEDOUT) { //Case: timeout
-                print_timeout(tid);
-                shared.decrypted = true; //Simulate new password
-                pthread_cond_broadcast(&shared.guess_cond);
-                pthread_mutex_unlock(&shared.guess_mutex);
-                continue;
-            }
+            while (!shared.guess_pending && !shared.decrypted) {
+                int rc = pthread_cond_timedwait(&shared.guess_cond, &shared.guess_mutex, &ts);
+            
+                if (rc == ETIMEDOUT) { //Case: timeout
+                    print_timeout(tid);
+                    shared.decrypted = true; //Simulate new password
+                    pthread_cond_broadcast(&shared.guess_cond);
+                    break;
+                }
+            }   
         }
         else //Case: no timeout, AKA -t flag wasn't given
             while (!shared.guess_pending && !shared.decrypted)
@@ -150,7 +158,7 @@ void *encrypter(void *arg) {
             if (match && !shared.decrypted) {
                 shared.decrypted = true;
                 print_success(tid, decrypter_id, password);
-                pthread_cond_broadcast(&shared.guess_cond);
+                pthread_cond_broadcast(&shared.cond);
             }
             else if (match) //Case: old guess
                 print_old_pw_guess(tid, decrypter_id, guess_curr);
