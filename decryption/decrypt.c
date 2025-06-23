@@ -50,10 +50,15 @@ void* decryptProcess(void* arg)
 
     while (running) {
         
-        pthread_mutex_lock(&shared.mutex);
+    pthread_mutex_lock(&shared.mutex);
     //Makes sure the decryptors wait for first password
-    if (!shared.new_data || shared.length == 0)
+    while (!shared.new_data || shared.length == 0)
         pthread_cond_wait(&shared.cond, &shared.mutex);
+
+    if (!running) {
+        pthread_mutex_unlock(&shared.mutex);
+        break;
+    }
         
     memcpy(encrypted_local, shared.encrypted, shared.length);
     shared.new_data = false;
@@ -62,10 +67,9 @@ void* decryptProcess(void* arg)
     for (int iter = 1; running; iter++) {//Continue as long as encryptor sending passwords
 
         pthread_mutex_lock(&shared.mutex);
-        if (shared.new_data) { //Case: First time
-            memcpy(encrypted_local, shared.encrypted, shared.length);
-            shared.new_data = false; 
-            iter = 1;              //Reset iteration count of decryption
+        if (shared.new_data || shared.decrypted) {
+            pthread_mutex_unlock(&shared.mutex);
+            break;
         }
         pthread_mutex_unlock(&shared.mutex);
 
@@ -85,16 +89,8 @@ void* decryptProcess(void* arg)
         }
         
         pthread_mutex_unlock(&shared.guess_mutex);
-
-        pthread_mutex_lock(&shared.mutex);
-        bool done = shared.decrypted || shared.new_data;
-        pthread_mutex_unlock(&shared.mutex);
-        if(done)
-            break;
-        
         }
     }
-    
     return NULL;
 }
 
