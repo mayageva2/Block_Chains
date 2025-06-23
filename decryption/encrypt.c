@@ -128,10 +128,13 @@ void *encrypter(void *arg) {
                     continue;
                 }
             }
+            pthread_mutex_unlock(&shared.guess_mutex);
         }
         else { //Case: no -t flag was given
+            pthread_mutex_lock(&shared.guess_mutex);
             if (!shared.decrypted)
                 pthread_cond_wait(&shared.guess_cond, &shared.guess_mutex);
+            pthread_mutex_unlock(&shared.guess_mutex);
         }
 
 

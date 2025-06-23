@@ -48,9 +48,11 @@ void* decryptProcess(void* arg)
     char guess[MAX_PASSWORD_LENGTH] = {};
     int iter = 0;
 
-    pthread_mutex_lock(&shared.mutex);
+    while (running) {
+        
+        pthread_mutex_lock(&shared.mutex);
     //Makes sure the decryptors wait for first password
-    while (!shared.new_data || shared.length == 0)
+    if (!shared.new_data || shared.length == 0)
         pthread_cond_wait(&shared.cond, &shared.mutex);
         
     memcpy(encrypted_local, shared.encrypted, shared.length);
@@ -90,7 +92,9 @@ void* decryptProcess(void* arg)
         if(done)
             break;
         
+        }
     }
+    
     return NULL;
 }
 
