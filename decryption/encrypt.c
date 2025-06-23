@@ -90,22 +90,25 @@ void *encrypter(void *arg) {
     pthread_t tid = pthread_self();
 
     while (running) {
-        memcpy(shared.previous_password, password, password_length);
-        generate_printable_password(password, password_length);
-        MTA_get_rand_data(key, password_length / 8);
-        encrypt_password(password, key, encrypted, password_length, password_length / 8);
+        if (shared.decrypted || shared.length == 0) { 
+            shared.decrypted = false;
+            memcpy(shared.previous_password, password, password_length);
+            generate_printable_password(password, password_length);
+            MTA_get_rand_data(key, password_length / 8);
+            encrypt_password(password, key, encrypted, password_length, password_length / 8);
 
-        //Write encrypted password to shared buffer
-        pthread_mutex_lock(&shared.mutex);
-        memcpy(shared.encrypted, encrypted, password_length);
-        shared.length = password_length;
-        shared.new_data = true; //New encrypted password available
-        shared.decrypted = false; //Encrypted password wasn't decrypted
-        shared.guess_pending = false;
-        pthread_cond_broadcast(&shared.cond);
-        pthread_mutex_unlock(&shared.mutex);
+            //Write encrypted password to shared buffer
+            pthread_mutex_lock(&shared.mutex);
+            memcpy(shared.encrypted, encrypted, password_length);
+            shared.length = password_length;
+            shared.new_data = true; //New encrypted password available
+            shared.decrypted = false; //Encrypted password wasn't decrypted
+            shared.guess_pending = false;
+            pthread_cond_broadcast(&shared.cond);
+            pthread_mutex_unlock(&shared.mutex);
 
-        print_new_pw(tid, password, key, encrypted); //Prints new password info
+            print_new_pw(tid, password, key, encrypted); //Prints new password info
+        }
 
         //Wait for timeout or correct decryption
         time_t start = time(NULL);
@@ -122,6 +125,7 @@ void *encrypter(void *arg) {
 
                 if (rc == ETIMEDOUT) { //Case: timeout
                     print_timeout(tid);
+                    shared.decrypted = true;
                     break;
                 }
             }
