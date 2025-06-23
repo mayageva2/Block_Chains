@@ -65,8 +65,6 @@ void* decryptProcess(void* arg)
             shared.new_data = false;
         }
 
-        memcpy(encrypted_local, shared.encrypted, shared.length);
-        shared.new_data = false;
         pthread_mutex_unlock(&shared.mutex);
 
         for (int iter = 1; running; iter++) //Brute-force loop; counter for number iterations in brute-force loop
