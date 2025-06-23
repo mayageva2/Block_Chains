@@ -86,7 +86,9 @@ void* decryptProcess(void* arg)
             pthread_mutex_unlock(&shared.guess_mutex);
 
             print_send_log(id, guess, key, iter); //Prints the send log of the decrypter
-            break;
+            if (shared.new_data) {
+            iter = 0;
+            }
         }
     }
     return NULL;
