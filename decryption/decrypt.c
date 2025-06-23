@@ -46,50 +46,50 @@ void* decryptProcess(void* arg)
     char encrypted_local [MAX_PASSWORD_LENGTH] = {};
     char key[MAX_PASSWORD_LENGTH/8] = {};
     char guess[MAX_PASSWORD_LENGTH] = {};
+    int iter = 0;
 
-    while(running) //Continue as long as encryptor sending passwords
-    {
+    pthread_mutex_lock(&shared.mutex);
+    //Makes sure the decryptors wait for first password
+    while (!shared.new_data || shared.length == 0)
+        pthread_cond_wait(&shared.cond, &shared.mutex);
+        
+    memcpy(encrypted_local, shared.encrypted, shared.length);
+    shared.new_data = false;
+    pthread_mutex_unlock(&shared.mutex);
+
+    for (int iter = 1; running; iter++) {//Continue as long as encryptor sending passwords
+
         pthread_mutex_lock(&shared.mutex);
-
-        //Makes sure the decryptors wait for first password
-        if (!shared.new_data && shared.length == 0 && running)
-            pthread_cond_wait(&shared.cond, &shared.mutex);
-
-        if (!running) {
-            pthread_mutex_unlock(&shared.mutex);
-            break;
-        }
-
-        if (shared.new_data) {
+        if (shared.new_data) { //Case: First time
             memcpy(encrypted_local, shared.encrypted, shared.length);
-            shared.new_data = false;
+            shared.new_data = false; 
+            iter = 1;              //Reset iteration count of decryption
         }
-
         pthread_mutex_unlock(&shared.mutex);
 
-        for (int iter = 1; running; iter++) //Brute-force loop; counter for number iterations in brute-force loop
-        {
-            MTA_get_rand_data(key, password_length / 8);
-            if (!try_decrypt(encrypted_local, password_length, key, password_length / 8, guess))
-                continue;
+        MTA_get_rand_data(key, password_length / 8);
+        if (!try_decrypt(encrypted_local, password_length, key, password_length / 8, guess))
+            continue;
 
-            //From now on, decryption attempt can be made
-            //Send candidate guess
-            pthread_mutex_lock(&shared.guess_mutex);
-            while (shared.guess_pending) //Case: encrypter is busy with another decrypter
-                pthread_cond_wait(&shared.guess_cond, &shared.guess_mutex);
-
+        //From now on, decryption attempt can be made
+        //Send candidate guess
+        pthread_mutex_lock(&shared.guess_mutex);
+        if (!shared.guess_pending) {
             shared.guess_pending = true;
             shared.guesser_id = id;
             memcpy(shared.guess, guess, password_length);
-            pthread_cond_signal(&shared.guess_cond);
-            pthread_mutex_unlock(&shared.guess_mutex);
-
             print_send_log(id, guess, key, iter); //Prints the send log of the decrypter
-            if (shared.new_data) {
-            iter = 0;
-            }
+            pthread_cond_signal(&shared.guess_cond);
         }
+        
+        pthread_mutex_unlock(&shared.guess_mutex);
+
+        pthread_mutex_lock(&shared.mutex);
+        bool done = shared.decrypted || shared.new_data;
+        pthread_mutex_unlock(&shared.mutex);
+        if(done)
+            break;
+        
     }
     return NULL;
 }
