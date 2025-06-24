@@ -43,9 +43,8 @@ void encrypt_password(char *password,char *key, char *encrypted, int length, int
 
 //This function prints a log when a new password is generated
 void print_new_pw(char* password, char* key, char* encrypted) {
-    time_t now = time(NULL);
-    printf("%lu\t[ENCRYPTER]\t[INFO]\tNew password generated: %.*s, key: %.*s, After encryption: %.*s\n",
-    now,
+    printf("%ld\t[ENCRYPTER]\t[INFO]\tNew password generated: %.*s, key: %.*s, After encryption: %.*s\n",
+    time(NULL),
     password_length, password,
     password_length/8, key,
     password_length, encrypted);
@@ -53,12 +52,20 @@ void print_new_pw(char* password, char* key, char* encrypted) {
 
 //This function prints a success log when a correct password guess is received from a decrypter
 void print_success(int decrypter_id, char* password) {
-    time_t now = time(NULL);
-    printf("%lu\t[ENCRYPTER]\t[OK]\tPassword decrypted successfully by client #%d, received (%.*s), is (%.*s)\n",
-    now,
+    printf("%ld\t[ENCRYPTER]\t[OK]\tPassword decrypted successfully by client #%d, received (%.*s), is (%.*s)\n",
+    time(NULL),
     decrypter_id,
     password_length, shared.guess,
     password_length, password);
+}
+
+
+//This function prints an error log when no password guess is received within the configured timeout
+void print_timeout() {
+
+    printf("%ld\t[ENCRYPTER]\t[ERROR]\tNo password received during configured timeout period (%d seconds), regenerating password\n",
+    time(NULL),
+    timeout_seconds);
 }
 
 void print_connection(int decrypter_id, char* fifo_path) {
@@ -69,28 +76,18 @@ void print_connection(int decrypter_id, char* fifo_path) {
     fifo_path);
 }
 
-//This function prints an error log when no password guess is received within the configured timeout
-void print_timeout() {
-    time_t now = time(NULL);
-    printf("%lu\t[ENCRYPTER]\t[ERROR]\tNo password received during configured timeout period (%d seconds), regenerating password\n",
-    now,
-    timeout_seconds);
-}
-
 //This function prints a log when a decrypter submits a correct but outdated password
 void print_old_pw_guess(int decrypter_id, char* guess) {
-    time_t now = time(NULL);
-    printf("%lu\t[ENCRYPTER]\t[ERROR]\tReceived correct but outdated password from client #%d: (%.*s)\n",
-    now,
+    printf("%ld\t[ENCRYPTER]\t[ERROR]\tReceived correct but outdated password from client #%d: (%.*s)\n",
+    time(NULL),
     decrypter_id,
     password_length, guess);
 }
 
 //This function prints an error log when a wrong password guess is submitted by a decrypter
 void print_wrong_guess(int decrypter_id, char* guess, char* password) {
-    time_t now = time(NULL);
-    printf("%lu\t[ENCRYPTER]\t[ERROR]\tWrong password received from client #%d (%.*s), should be (%.*s)\n",
-    now,
+    printf("%ld\t[ENCRYPTER]\t[ERROR]\tWrong password received from client #%d (%.*s), should be (%.*s)\n",
+    time(NULL),
     decrypter_id,
     password_length, guess,
     password_length, password);
