@@ -30,9 +30,9 @@ bool try_decrypt(char* encrypted, unsigned int enc_len, char* key, unsigned int 
 
 //This function prints a log when a decrypter sends a password guess to the encrypter
 void print_send_log(int id, char* guess, char* key_used, int it) {
-
+    time_t now = time(NULL);
     printf("%lu\t[DECRYPTER #%d]\t[INFO]\tAfter decryption(%.*s), key guessed(%.*s), sending to encrypter after %d iterations\n",
-    pthread_self(),
+    now,
     id,
     password_length, guess,
     password_length / 8, key_used,
@@ -82,7 +82,7 @@ void* decryptProcess(void* arg)
         pthread_mutex_lock(&shared.guess_mutex);
         if (!shared.guess_pending) {
             shared.guess_pending = true;
-            shared.guesser_id = id;
+            time_t now = time(NULL);
             memcpy(shared.guess, guess, password_length);
             print_send_log(id, guess, key, iter); //Prints the send log of the decrypter
             pthread_cond_signal(&shared.guess_cond);
