@@ -83,7 +83,7 @@ void* decryptProcess(void* arg)
             shared.guess_pending = true;
             time_t now = time(NULL);
             memcpy(shared.guess, guess, password_length);
-            print_send_log(id, guess, key, iter); //Prints the send log of the decrypter
+            print_send_log(id, guess, key, iter); //Prints the send log of the decrypter 
             pthread_cond_signal(&shared.guess_cond);
         }
         

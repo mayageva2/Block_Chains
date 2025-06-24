@@ -23,6 +23,10 @@ extern int timeout_seconds;
 extern bool running;
 
 #define MAX_REG_MSG 128
+#define MAX_DECRYPTERS 100
+
+char decrypters_pipes[MAX_DECRYPTERS][128];
+int decrypters_count = 0;
 
 //This function generates a printable password and writes it into the provided buffer; Helper function
 void generate_printable_password(char *password, int length) {
@@ -62,16 +66,15 @@ void print_success(int decrypter_id, char* password) {
 
 //This function prints an error log when no password guess is received within the configured timeout
 void print_timeout() {
-
     printf("%ld\t[ENCRYPTER]\t[ERROR]\tNo password received during configured timeout period (%d seconds), regenerating password\n",
     time(NULL),
     timeout_seconds);
 }
 
+//This function prints a log when a connection request occured
 void print_connection(int decrypter_id, char* fifo_path) {
-    time_t now = time(NULL);
-    printf("%lu\t[ENCRYPTER]\t[INFO]\tReceived connection request from decrypter id %d, fifo name %s\n\n",
-    now,
+    printf("%ld\t[ENCRYPTER]\t[INFO]\tReceived connection request from decrypter id %d, fifo name %s\n\n",
+    time(NULL),
     decrypter_id,
     fifo_path);
 }
@@ -112,33 +115,30 @@ void *encrypter(void *arg) {
 
     create_main_pipe();
 
-    //Opens pipe for read
     int pipe_fd = open("/mnt/mta/encrypter_pipe", O_RDWR  | O_NONBLOCK); //Opens pipe for read and write
     if (pipe_fd == -1) {
         perror("open pipe");
         exit(1);
     }
 
-    char reg_buf[MAX_REG_MSG]; 
     char password[MAX_PASSWORD_LENGTH];
     char key[MAX_PASSWORD_LENGTH / 8];
     char encrypted[MAX_PASSWORD_LENGTH];
 
     while (running) {
-        ssize_t bytes = read(pipe_fd, reg_buf, sizeof(reg_buf) - 1); //reads from pipe
-        if (bytes > 0) {
-            reg_buf[bytes] = '\0';
-            if (bytes > 0 && strncmp(reg_buf, "REGISTER:", 9) == 0) {
-                char fifo_path[128];
-                int decrypter_id = shared.guesser_id;
-                char* pipe_name = reg_buf + 9;
-                strncpy(fifo_path, reg_buf + 9, sizeof(fifo_path));
-                fifo_path[sizeof(fifo_path)-1] = '\0';
-
-                print_connection(decrypter_id, fifo_path);
+        int id = -1;
+        char buf[MAX_REG_MSG];
+        ssize_t bytes;
+        if ((bytes = read(pipe_fd, buf, sizeof(buf) - 1)) > -1) {//reads from pipe
+            if (strncmp(buf, "id:", 3) == 0) {
+                buf[bytes] = '\0';
+                id = atoi(buf + 3);
+                snprintf(decrypters_pipes[id], sizeof(decrypters_pipes[0]), "/mnt/mta/decrypter_pipe_%d", id);
+                print_connection(id, decrypters_pipes[id]);
+                fflush(stdout);
             }
         }
-
+        
         pthread_mutex_lock(&shared.mutex);
         if (first || shared.decrypted) {
             first = false;
@@ -151,6 +151,17 @@ void *encrypter(void *arg) {
             generate_printable_password(password, password_length);
             MTA_get_rand_data(key, password_length / 8);
             encrypt_password(password, key, encrypted, password_length, password_length / 8);
+
+            //Send to decrypter pipe
+            if(id != -1){
+                int fd = open(decrypters_pipes[id], O_WRONLY | O_NONBLOCK);
+                if (fd != -1) {
+                    write(fd, encrypted, password_length);
+                    close(fd);
+                } else {
+                    perror("open decrypter pipe failed");
+                }
+            }
 
             //Write encrypted password to shared buffer
             pthread_mutex_lock(&shared.mutex);
@@ -201,7 +212,6 @@ void *encrypter(void *arg) {
             pthread_mutex_unlock(&shared.guess_mutex);
 
             bool match = (memcmp(guess_curr, password, password_length) == 0);
-
             pthread_mutex_lock(&shared.mutex);
             if (match && !shared.decrypted) {
                 shared.decrypted = true;
