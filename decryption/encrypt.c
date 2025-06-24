@@ -22,6 +22,8 @@ extern int num_decrypters;
 extern int timeout_seconds;
 extern bool running;
 
+#define MAX_REG_MSG 128
+
 //This function generates a printable password and writes it into the provided buffer; Helper function
 void generate_printable_password(char *password, int length) {
 
@@ -58,6 +60,14 @@ void print_success(pthread_t tid, int decrypter_id, char* password) {
     decrypter_id,
     password_length, shared.guess,
     password_length, password);
+}
+
+void print_connection(pthread_t tid, int decrypter_id, char* fifo_path) {
+    time_t now = time(NULL);
+    printf("%lu\t[ENCRYPTER]\t[INFO]\tReceived connection request from decrypter id %d, fifo name %s\n\n",
+    now,
+    decrypter_id,
+    fifo_path);
 }
 
 //This function prints an error log when no password guess is received within the configured timeout
@@ -108,17 +118,32 @@ void *encrypter(void *arg) {
     create_main_pipe();
 
     //Opens pipe for read
-    int pipe_fd = open("/mnt/mta/encrypter_pipe", O_RDONLY | O_NONBLOCK);
+    int pipe_fd = open("/mnt/mta/encrypter_pipe", O_RDWR  | O_NONBLOCK); //Opens pipe for read and write
     if (pipe_fd == -1) {
         perror("open pipe");
         exit(1);
     }
 
+    char reg_buf[MAX_REG_MSG]; 
     char password[MAX_PASSWORD_LENGTH];
     char key[MAX_PASSWORD_LENGTH / 8];
     char encrypted[MAX_PASSWORD_LENGTH];
 
     while (running) {
+        ssize_t bytes = read(pipe_fd, reg_buf, sizeof(reg_buf) - 1); //reads from pipe
+        if (bytes > 0) {
+            reg_buf[bytes] = '\0';
+            if (bytes > 0 && strncmp(reg_buf, "REGISTER:", 9) == 0) {
+                char fifo_path[128];
+                int decrypter_id = shared.guesser_id;
+                char* pipe_name = reg_buf + 9;
+                strncpy(fifo_path, reg_buf + 9, sizeof(fifo_path));
+                fifo_path[sizeof(fifo_path)-1] = '\0';
+
+                print_connection(tid, decrypter_id, fifo_path);
+            }
+        }
+
         pthread_mutex_lock(&shared.mutex);
         if (first || shared.decrypted) {
             first = false;
