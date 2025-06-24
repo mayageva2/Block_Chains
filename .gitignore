@@ -1,0 +1,6 @@
+.vscode/
+blocks
+*.so
+*.a
+tmp_deb/
+*.deb
