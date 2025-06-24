@@ -7,6 +7,7 @@
 #include "shared.h"
 #include "encrypt.h"
 #include "decrypt.h"
+#include "config.h"
 
 //Global variables
 SharedData shared = {
@@ -38,24 +39,22 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    //Read password_length from config file
+    password_length = read_config_password_length("../mtacrypt.conf");
+
     static struct option long_options[] = {
         {"num-of-decrypters", required_argument, 0, 'n'},
-        {"password-length", required_argument, 0, 'l'},
         {"timeout", required_argument, 0, 't'},
         {0, 0, 0, 0}
     };
     
-    int got_n = 0, got_l = 0;
+    int got_n = 0;
     int opt;
-    while ((opt = getopt_long(argc, argv, "n:l:t:", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "n:t:", long_options, NULL)) != -1) {
         switch (opt) {
             case 'n':
                 num_decrypters = atoi(optarg);
                 got_n = 1;
-                break;
-            case 'l':
-                password_length = atoi(optarg);
-                got_l = 1;
                 break;
             case 't':
                 timeout_seconds = atoi(optarg);
@@ -71,12 +70,6 @@ int main(int argc, char *argv[])
        print_usage();
        exit(EXIT_FAILURE);
    } 
-   else if(!got_l)
-   {
-       fprintf(stderr, "Missing length of password.\n");
-       print_usage();
-       exit(EXIT_FAILURE);
-   }
 
    if (password_length <= 0 || password_length % 8 != 0 || password_length > MAX_PASSWORD_LENGTH) {
        fprintf(stderr, "Password length must be > 0, divisible by 8, and <= %d.\n", MAX_PASSWORD_LENGTH);

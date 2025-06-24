@@ -7,6 +7,11 @@
 #include <pthread.h>
 #include <mta_crypt.h> 
 #include <mta_rand.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h> 
+#include <errno.h> 
+#include <sys/stat.h>
 #include "shared.h"
 #include "encrypt.h"
 
@@ -16,6 +21,8 @@ extern int password_length;
 extern int num_decrypters;
 extern int timeout_seconds;
 extern bool running;
+
+#define MAX_REG_MSG 128
 
 //This function generates a printable password and writes it into the provided buffer; Helper function
 void generate_printable_password(char *password, int length) {
@@ -30,14 +37,12 @@ void generate_printable_password(char *password, int length) {
 
 //This function encrypts a password using MTA encryption with the given key and key length
 void encrypt_password(char *password,char *key, char *encrypted, int length, int key_length) {
-
     unsigned int out_len = length;
     MTA_encrypt(key,key_length, password, length, encrypted, &out_len);
 }
 
 //This function prints a log when a new password is generated
 void print_new_pw(char* password, char* key, char* encrypted) {
-
     printf("%ld\t[ENCRYPTER]\t[INFO]\tNew password generated: %.*s, key: %.*s, After encryption: %.*s\n",
     time(NULL),
     password_length, password,
@@ -47,13 +52,13 @@ void print_new_pw(char* password, char* key, char* encrypted) {
 
 //This function prints a success log when a correct password guess is received from a decrypter
 void print_success(int decrypter_id, char* password) {
-
     printf("%ld\t[ENCRYPTER]\t[OK]\tPassword decrypted successfully by client #%d, received (%.*s), is (%.*s)\n",
     time(NULL),
     decrypter_id,
     password_length, shared.guess,
     password_length, password);
 }
+
 
 //This function prints an error log when no password guess is received within the configured timeout
 void print_timeout() {
@@ -63,9 +68,16 @@ void print_timeout() {
     timeout_seconds);
 }
 
+void print_connection(int decrypter_id, char* fifo_path) {
+    time_t now = time(NULL);
+    printf("%lu\t[ENCRYPTER]\t[INFO]\tReceived connection request from decrypter id %d, fifo name %s\n\n",
+    now,
+    decrypter_id,
+    fifo_path);
+}
+
 //This function prints a log when a decrypter submits a correct but outdated password
 void print_old_pw_guess(int decrypter_id, char* guess) {
-
     printf("%ld\t[ENCRYPTER]\t[ERROR]\tReceived correct but outdated password from client #%d: (%.*s)\n",
     time(NULL),
     decrypter_id,
@@ -74,7 +86,6 @@ void print_old_pw_guess(int decrypter_id, char* guess) {
 
 //This function prints an error log when a wrong password guess is submitted by a decrypter
 void print_wrong_guess(int decrypter_id, char* guess, char* password) {
-
     printf("%ld\t[ENCRYPTER]\t[ERROR]\tWrong password received from client #%d (%.*s), should be (%.*s)\n",
     time(NULL),
     decrypter_id,
@@ -82,14 +93,52 @@ void print_wrong_guess(int decrypter_id, char* guess, char* password) {
     password_length, password);
 }
 
+//This function creates the main named pipe
+void create_main_pipe() {
+    const char* pipe_path = "/mnt/mta/encrypter_pipe";
+
+    //In case it already exsists
+    if (mkfifo(pipe_path, 0666) == -1 && errno != EEXIST) {
+        perror("mkfifo");
+        exit(1);
+    }
+
+    printf("Created main pipe: %s\n", pipe_path);
+}
+
 //This function is executed by the encrypter thread, and coordinates password generation and validation; Encrypter thread function
 void *encrypter(void *arg) {
+    bool first = true;
+
+    create_main_pipe();
+
+    //Opens pipe for read
+    int pipe_fd = open("/mnt/mta/encrypter_pipe", O_RDWR  | O_NONBLOCK); //Opens pipe for read and write
+    if (pipe_fd == -1) {
+        perror("open pipe");
+        exit(1);
+    }
+
+    char reg_buf[MAX_REG_MSG]; 
     char password[MAX_PASSWORD_LENGTH];
     char key[MAX_PASSWORD_LENGTH / 8];
     char encrypted[MAX_PASSWORD_LENGTH];
-    bool first = true;
 
     while (running) {
+        ssize_t bytes = read(pipe_fd, reg_buf, sizeof(reg_buf) - 1); //reads from pipe
+        if (bytes > 0) {
+            reg_buf[bytes] = '\0';
+            if (bytes > 0 && strncmp(reg_buf, "REGISTER:", 9) == 0) {
+                char fifo_path[128];
+                int decrypter_id = shared.guesser_id;
+                char* pipe_name = reg_buf + 9;
+                strncpy(fifo_path, reg_buf + 9, sizeof(fifo_path));
+                fifo_path[sizeof(fifo_path)-1] = '\0';
+
+                print_connection(decrypter_id, fifo_path);
+            }
+        }
+
         pthread_mutex_lock(&shared.mutex);
         if (first || shared.decrypted) {
             first = false;
