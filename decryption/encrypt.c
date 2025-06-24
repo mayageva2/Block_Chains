@@ -7,6 +7,11 @@
 #include <pthread.h>
 #include <mta_crypt.h> 
 #include <mta_rand.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h> 
+#include <errno.h> 
+#include <sys/stat.h>
 #include "shared.h"
 #include "encrypt.h"
 
@@ -82,13 +87,36 @@ void print_wrong_guess(pthread_t tid, int decrypter_id, char* guess, char* passw
     password_length, password);
 }
 
+//This function creates the main named pipe
+void create_main_pipe() {
+    const char* pipe_path = "/mnt/mta/encrypter_pipe";
+
+    //In case it already exsists
+    if (mkfifo(pipe_path, 0666) == -1 && errno != EEXIST) {
+        perror("mkfifo");
+        exit(1);
+    }
+
+    printf("Created main pipe: %s\n", pipe_path);
+}
+
 //This function is executed by the encrypter thread, and coordinates password generation and validation; Encrypter thread function
 void *encrypter(void *arg) {
+    pthread_t tid = pthread_self();
+    bool first = true;
+
+    create_main_pipe();
+
+    //Opens pipe for read
+    int pipe_fd = open("/mnt/mta/encrypter_pipe", O_RDONLY | O_NONBLOCK);
+    if (pipe_fd == -1) {
+        perror("open pipe");
+        exit(1);
+    }
+
     char password[MAX_PASSWORD_LENGTH];
     char key[MAX_PASSWORD_LENGTH / 8];
     char encrypted[MAX_PASSWORD_LENGTH];
-    pthread_t tid = pthread_self();
-    bool first = true;
 
     while (running) {
         pthread_mutex_lock(&shared.mutex);
