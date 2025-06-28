@@ -108,11 +108,36 @@ void create_main_pipe() {
     printf("Created main pipe: %s\n", pipe_path);
 }
 
+//This func checks if message in pipe is subscription or guess
+char* handle_pipe_message(char *msg, int *decrypters_count, int* id) {
+    const char *prefix = "/mnt/mta/decrypter_pipe_";
+    size_t prefix_len = strlen(prefix);
+    
+    //Incase of password message 
+    char *space = strchr(msg, ' ');
+
+    size_t path_len = space ? (size_t)(space - msg) : strlen(msg); //Address length
+    strncpy(decrypters_pipes[*decrypters_count], msg, sizeof(decrypters_pipes[0]) - 1);
+    decrypters_pipes[*decrypters_count][path_len] = '\0';
+
+    if(space != NULL) {
+        char *guess = space + 1;
+        return guess;
+    }
+    else {
+        (*id) = atoi(decrypters_pipes[*decrypters_count] + prefix_len);
+        print_connection((*id), decrypters_pipes[*decrypters_count]);
+        (*decrypters_count)++;
+        char* str = "pipe subscription request";
+        return str;
+    }
+}
+
 //This function is executed by the encrypter thread, and coordinates password generation and validation; Encrypter thread function
 void *encrypter(void *arg) {
     bool first = true;
     create_main_pipe();
-
+    
     int pipe_fd = open("/mnt/mta/encrypter_pipe", O_RDWR  | O_NONBLOCK); //Opens pipe for read and write
     if (pipe_fd == -1) {
         perror("open pipe");
@@ -122,22 +147,30 @@ void *encrypter(void *arg) {
     char password[MAX_PASSWORD_LENGTH];
     char key[MAX_PASSWORD_LENGTH / 8];
     char encrypted[MAX_PASSWORD_LENGTH];
+    int decrypters_count = 0;
 
     while (running) {
         char buf[MAX_REG_MSG];
-        int decrypters_count = 0;
         ssize_t bytes;
+        char subscription_request = false;
 
-        while ((bytes = read(pipe_fd, buf, sizeof(buf) - 1)) > 0) {//reads from pipe and get decryptor pipe path
+        //Reads from pipe and get encrypter pipe data
+        while ((bytes = read(pipe_fd, buf, sizeof(buf) - 1)) > 0) {
             buf[bytes] = '\0';
-            if (decrypters_count < MAX_DECRYPTERS && strncmp(buf, "/mnt/mta/decrypter_pipe_", 24) == 0) {
-                strncpy(decrypters_pipes[decrypters_count], buf, sizeof(decrypters_pipes[0]) - 1);
-                decrypters_pipes[decrypters_count][sizeof(decrypters_pipes[0]) - 1] = '\0';
-                decrypters_pipes[decrypters_count][strcspn(decrypters_pipes[decrypters_count], "\n")] = '\0';
-                int id = atoi(buf + 24);
-                print_connection(id, decrypters_pipes[decrypters_count]);
-                fflush(stdout);
-                decrypters_count++;
+            buf[strcspn(buf, "\n")] = '\0';
+            int id;
+
+            char* curr_guess = handle_pipe_message(buf, &decrypters_count, &id);
+            if (strcmp(curr_guess, "pipe subscription request") == 0)
+                subscription_request = true;
+            else 
+            {
+                pthread_mutex_lock(&shared.guess_mutex);
+                memcpy(shared.guess, curr_guess, password_length);
+                shared.guesser_id = id;
+                shared.guess_pending = true;
+                pthread_cond_broadcast(&shared.guess_cond);
+                pthread_mutex_unlock(&shared.guess_mutex);
             }
         }
         
@@ -157,15 +190,17 @@ void *encrypter(void *arg) {
             bool password_sent[MAX_DECRYPTERS] = {false};
             
             //Send password to decrypter pipe
-            for(int i = 0; i < decrypters_count; i++){
-                int fd = open(decrypters_pipes[i], O_WRONLY | O_NONBLOCK);
-                if (fd != -1) {
-                    write(fd, encrypted, password_length);
-                    close(fd);
-                } 
-                else {
-                    perror("open decrypter pipe failed");
-                    printf("errno: %d (%s)\n", errno, strerror(errno));
+            if(subscription_request) {
+                for(int i = 0; i < decrypters_count; i++){
+                    int fd = open(decrypters_pipes[i], O_WRONLY | O_NONBLOCK);
+                    if (fd != -1) {
+                        write(fd, encrypted, password_length);
+                        close(fd);
+                    } 
+                    else {
+                        perror("open decrypter pipe failed");
+                        printf("errno: %d (%s)\n", errno, strerror(errno));
+                    }
                 }
             }
 
@@ -223,6 +258,18 @@ void *encrypter(void *arg) {
                 shared.decrypted = true;
                 print_success(decrypter_id, password);
                 pthread_cond_broadcast(&shared.cond);
+
+                // Send new encrypted password to all decrypter's pipes
+                for (int i = 0; i < decrypters_count; i++) {
+                    int fd = open(decrypters_pipes[i], O_WRONLY | O_NONBLOCK);
+                    if (fd != -1) {
+                        write(fd, encrypted, password_length);
+                        close(fd);
+                    } else {
+                        perror("open decrypter pipe failed (post-success)");
+                        printf("errno: %d (%s)\n", errno, strerror(errno));
+                    }
+                }
             }
             else if (match) //Case: old guess
                 print_old_pw_guess(decrypter_id, guess_curr);
