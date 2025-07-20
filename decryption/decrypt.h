@@ -9,3 +9,6 @@ void* decryptProcess(void* argument);
 
 //Create and return an array of decrypter threads
 pthread_t* create_decrypter_threads(int num);
+
+//Runs a decrypter thread - TO CHANGE?
+void* decrypter_named_pipe(void* arg);

@@ -6,6 +6,10 @@
 #include <pthread.h>
 #include <mta_crypt.h>
 #include <mta_rand.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
 #include "shared.h"
 #include "decrypt.h"
 
@@ -93,6 +97,20 @@ void* decryptProcess(void* arg)
     return NULL;
 }
 
+void* decrypter_named_pipe(void* arg) {
+    int id = *(int*)arg;
+    free(arg);
+
+    char fifo_name[MAX_FIFO_NAME_LENGTH] = {};
+    snprintf(fifo_name, sizeof(fifo_name), "/mnt/mta/decrypter_pipe_%d", id);
+
+    //Create named pipe file with read and write permissions to everyone
+    mkfifo(fifo_name, 0666);
+
+    //Register with encrypter
+
+}
+
 //This function creates the specified number of decrypter threads and returns an array of their pthread IDs
 pthread_t* create_decrypter_threads(int num)
 {
@@ -104,9 +122,10 @@ pthread_t* create_decrypter_threads(int num)
 
     for (int i = 0; i < num; i++) //Create num decrypters
     {
-        //Create thread and run decryptProcess func with args
-        if (pthread_create(&threads[i], NULL, decryptProcess, (void*)(intptr_t)i) != 0) {
-            printf("Failed creating pthread\n");
+        int* id = malloc(sizeof(int));
+        *id = i;
+        if (pthread_create(&threads[i], NULL, decrypter_named_pipe, id) != 0) {
+            printf("Failed on creating a new thread %d" , i);
             exit(1);
         }
     }
