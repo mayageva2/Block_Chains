@@ -53,16 +53,18 @@ int main () {
     //Register with the encrypter
     int reg_fd = open(ENCRYPTER_PIPE_FILE_PATH, O_WRONLY);
     if (reg_fd < 0) {
-        log_message("ERROR", "Error: %s", sterror(errno));
+        log_message("ERROR", "Error: failed to open encrypter pipe - %s", strerror(errno));
         unlink(pipe_name);
+		close_file_logging();
         exit(1);
     }
     char reg_msg[MAX_PIPE_NAME_LENGTH + 16] = {};
     snprintf(reg_msg, sizeof(reg_msg), "REGISTER:%s", pipe_name);
     if (write(reg_fd, reg_msg, strlen(reg_msg)) < 0) {
-        log_message("ERROR", "Error: %s", sterror(errno));
+        log_message("ERROR", "Error: %s", strerror(errno));
         close(reg_fd);
         unlink(pipe_name);
+		close_file_logging();
         exit(1);
     }
     close(reg_fd);
@@ -71,8 +73,9 @@ int main () {
     //Open our Named Pipe for blocking read
     int fd = open(pipe_name, O_RDONLY);
     if (fd < 0) {
-        log_message("ERROR", "Error: %s", sterror(errno));
+        log_message("ERROR", "Error: %s", strerror(errno));
         unlink(pipe_name);
+		close_file_logging();
         exit(1);
     }
 
@@ -85,18 +88,27 @@ int main () {
     //Wait (blocking) for the first encrypted password
     ssize_t n = read(fd, encrypted, enc_len);
     if (n < 0) {
-        log_message("ERROR", "Error: failed to read first password - %s", sterror(errno));
+        log_message("ERROR", "Error: failed to read first password - %s", strerror(errno));
+		unlink(pipe_name);
+		close_file_logging();
         exit(1);
     }
     else if (n == 0) {
         log_message("ERROR", "Error: Pipe closed unexpectedly");
+		unlink(pipe_name);
+		close_file_logging();
         exit(1);
     }
     log_message("INFO", "Received encrypted password");
 
     //Switch to non-blocking mode fd
     int flags = fcntl(fd, F_GETFL, 0);
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+		log_message("ERROR", "Failed to set non-blocking reading from fd");
+		unlink(pipe_name);
+		close_file_logging();
+		exit(1);
+	}
 
     int iter = 1;
     //Brute-force loop
@@ -128,11 +140,11 @@ int main () {
 
         int gfd = open(ENCRYPTER_PIPE_FILE_PATH, O_WRONLY); //Guess File Descriptor
         if (gfd < 0) {
-            log_message("ERROR", "Error: %s", sterror(errno));
+            log_message("ERROR", "Error: %s", strerror(errno));
             break;
         }
         if (write(gfd, msg, msglen) < 0) {
-            log_message("ERROR", "Error: %s", sterror(errno));
+            log_message("ERROR", "Error: %s", strerror(errno));
             close(gfd);
             break;
         }
@@ -147,7 +159,7 @@ int main () {
                 continue;
             }
             if (a <= 0) {
-                log_message("ERROR", "Error: %s", sterror(errno));
+                log_message("ERROR", "Error: %s", strerror(errno));
                 continue;
             }
         } while (a <= 0);

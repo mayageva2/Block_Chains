@@ -1,3 +1,8 @@
+#include <stdio.h>
+#include <time.h>
+#include <stdarg.h>
+#include <mta_crypt.h>
+#include <mta_rand.h>
 #include "decrypt_funcs.h"
 
 //Global variables
@@ -38,7 +43,6 @@ void log_message(const char* level, const char* fmt, ...) {
         return;
 
     time_t now = time(NULL);
-    fprintf(log_fp, "%ld\t[DECRYPTER #%d]\t[%s]\t", now, decrypter_id, level);
 
     //Prepare message body
     char message [1024] = {};
