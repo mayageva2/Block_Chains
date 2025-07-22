@@ -1,134 +1,167 @@
+#define _POSIX_C_SOURCE 199309L
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h> 
 #include <string.h> 
 #include <ctype.h>
-#include <pthread.h>
 #include <mta_crypt.h>
 #include <mta_rand.h>
 #include <fcntl.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
-#include "shared.h"
-#include "decrypt.h"
+#include <stdbool.h>
+#include "decrypt_funcs.h"
+
+#define ENCRYPTER_PIPE_FILE_PATH "/mnt/mta/encrypter_pipe"
+#define CONFIG_FILE_PATH "/mnt/mta/mtacrypt.conf"
+#define MAX_PASSWORD_LENGTH 1024
+#define MAX_PIPE_NAME_LENGTH 128
+#define MAX_MSG_LEN (MAX_PIPE_NAME_LENGTH + 1 + MAX_PASSWORD_LENGTH)
 
 //Global variables
-extern SharedData shared;
-extern int password_length;
-extern bool running;
+FILE* log_fp = NULL;
+int decrypter_id = -1;
 
-//This function returns true if the guess is printable and the decryption was successful and false otherwise
-bool try_decrypt(char* encrypted, unsigned int enc_len, char* key, unsigned int key_len, char* guess) {
+int main () {
 
-    unsigned int out_len = enc_len;
-    if (MTA_decrypt(key, key_len, encrypted, enc_len, guess, &out_len) != MTA_CRYPT_RET_OK)
-        return false;
+    bool running = true;
 
-    for (unsigned int i = 0; i < out_len; i++)
-        if (!isprint(guess[i]))
-            return false;
+    //Read password length
+    int password_length = read_config_password_length(CONFIG_FILE_PATH);
+    unsigned int enc_len = password_length;
+    unsigned int key_len = password_length / 8;
 
-    return true;
-}
-
-//This function prints a log when a decrypter sends a password guess to the encrypter
-void print_send_log(int id, char* guess, char* key_used, int it) {
-    printf("%ld\t[DECRYPTER #%d]\t[INFO]\tAfter decryption(%.*s), key guessed(%.*s), sending to encrypter after %d iterations\n",
-    time(NULL),
-    id,
-    password_length, guess,
-    password_length / 8, key_used,
-    it);
-}
-
-//This function is executed by each decrypter thread and performs brute-force decryption attempts
-void* decryptProcess(void* arg)
-{
-    int id = (int)(intptr_t)arg;
-    char encrypted_local [MAX_PASSWORD_LENGTH] = {};
-    char key[MAX_PASSWORD_LENGTH/8] = {};
-    char guess[MAX_PASSWORD_LENGTH] = {};
-    int iter = 0;
-
+    //Determine our unique decrypter ID by finding next vacant number
+    int id = 1;
+    char pipe_name[MAX_PIPE_NAME_LENGTH] = {};
     while (running) {
-        
-    pthread_mutex_lock(&shared.mutex);
-    //Makes sure the decryptors wait for first password
-    while (!shared.new_data || shared.length == 0)
-        pthread_cond_wait(&shared.cond, &shared.mutex);
-
-    if (!running) {
-        pthread_mutex_unlock(&shared.mutex);
-        break;
-    }
-        
-    memcpy(encrypted_local, shared.encrypted, shared.length);
-    shared.new_data = false;
-    pthread_mutex_unlock(&shared.mutex);
-
-    for (int iter = 1; running; iter++) {//Continue as long as encryptor sending passwords
-
-        pthread_mutex_lock(&shared.mutex);
-        if (shared.new_data || shared.decrypted) {
-            pthread_mutex_unlock(&shared.mutex);
+        snprintf(pipe_name, sizeof(pipe_name), "/mnt/mta/decrypter_pipe_%d", id);
+        if (mkfifo(pipe_name, 0666) == 0) //Case: a new named pipe was created successfully
             break;
-        }
-        pthread_mutex_unlock(&shared.mutex);
-
-        MTA_get_rand_data(key, password_length / 8);
-        if (!try_decrypt(encrypted_local, password_length, key, password_length / 8, guess))
+        else if (errno == EEXIST) { //Case: id already taken, try next
+            id++;
             continue;
-
-        //From now on, decryption attempt can be made
-        //Send candidate guess
-        pthread_mutex_lock(&shared.guess_mutex);
-        if (!shared.guess_pending) {
-            shared.guess_pending = true;
-            time_t now = time(NULL);
-            memcpy(shared.guess, guess, password_length);
-            print_send_log(id, guess, key, iter); //Prints the send log of the decrypter
-            pthread_cond_signal(&shared.guess_cond);
         }
-        
-        pthread_mutex_unlock(&shared.guess_mutex);
-        }
+        perror("mkfifo decrypter pipe failed");
+        exit(1);
     }
-    return NULL;
-}
+    init_file_logging(id);
 
-void* decrypter_named_pipe(void* arg) {
-    int id = *(int*)arg;
-    free(arg);
+    //Register with the encrypter
+    int reg_fd = open(ENCRYPTER_PIPE_FILE_PATH, O_WRONLY);
+    if (reg_fd < 0) {
+        log_message("ERROR", "Error: %s", sterror(errno));
+        unlink(pipe_name);
+        exit(1);
+    }
+    char reg_msg[MAX_PIPE_NAME_LENGTH + 16] = {};
+    snprintf(reg_msg, sizeof(reg_msg), "REGISTER:%s", pipe_name);
+    if (write(reg_fd, reg_msg, strlen(reg_msg)) < 0) {
+        log_message("ERROR", "Error: %s", sterror(errno));
+        close(reg_fd);
+        unlink(pipe_name);
+        exit(1);
+    }
+    close(reg_fd);
+    log_message("INFO", "Sent connect request to server");
 
-    char fifo_name[MAX_FIFO_NAME_LENGTH] = {};
-    snprintf(fifo_name, sizeof(fifo_name), "/mnt/mta/decrypter_pipe_%d", id);
-
-    //Create named pipe file with read and write permissions to everyone
-    mkfifo(fifo_name, 0666);
-
-    //Register with encrypter
-
-}
-
-//This function creates the specified number of decrypter threads and returns an array of their pthread IDs
-pthread_t* create_decrypter_threads(int num)
-{
-    pthread_t* threads = malloc(num * sizeof(pthread_t)); //Array of threads IDs
-    if (!threads) {
-        printf("Failed allocating memory for threads\n");
+    //Open our Named Pipe for blocking read
+    int fd = open(pipe_name, O_RDONLY);
+    if (fd < 0) {
+        log_message("ERROR", "Error: %s", sterror(errno));
+        unlink(pipe_name);
         exit(1);
     }
 
-    for (int i = 0; i < num; i++) //Create num decrypters
-    {
-        int* id = malloc(sizeof(int));
-        *id = i;
-        if (pthread_create(&threads[i], NULL, decrypter_named_pipe, id) != 0) {
-            printf("Failed on creating a new thread %d" , i);
-            exit(1);
+    //Buffers for encryption/decryption
+    char encrypted[MAX_PASSWORD_LENGTH] = {};
+    char key[MAX_PASSWORD_LENGTH/8] = {};
+    char guess[MAX_PASSWORD_LENGTH] = {};
+    char answer[32] = {};
+
+    //Wait (blocking) for the first encrypted password
+    ssize_t n = read(fd, encrypted, enc_len);
+    if (n < 0) {
+        log_message("ERROR", "Error: failed to read first password - %s", sterror(errno));
+        exit(1);
+    }
+    else if (n == 0) {
+        log_message("ERROR", "Error: Pipe closed unexpectedly");
+        exit(1);
+    }
+    log_message("INFO", "Received encrypted password");
+
+    //Switch to non-blocking mode fd
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
+    int iter = 1;
+    //Brute-force loop
+    while (running) {
+        //Each iteration check blocking for a new password pushed by encrypter
+        ssize_t m = read(fd, encrypted, enc_len);
+        if (m == enc_len) //Case: received new encrypted password
+            log_message("INFO", "Received new encrypted password %s", encrypted);
+        else if (m == -1 && errno == EAGAIN) {
+            //No new password
         }
+        else if (m == 0) {
+            log_message("ERROR", "Pipe was closed by encrypter. Exiting.");
+            break;
+        }
+        else
+            log_message("ERROR", "Partial password or unexpected read: m = %zd", m);
+
+        //Generate a random key and try decrypt
+        MTA_get_rand_data(key, key_len);
+        if (!try_decrypt(encrypted, enc_len, key, key_len, guess)) //Case: is not a viable guess
+            continue;
+
+        //Send our guess back; format: "<pipe_name> <guess>"
+        char msg[MAX_MSG_LEN] = {};
+        int msglen = snprintf(msg, sizeof(msg), "%s ", pipe_name);
+        memcpy(msg+msglen, guess, enc_len);
+        msglen += enc_len;
+
+        int gfd = open(ENCRYPTER_PIPE_FILE_PATH, O_WRONLY); //Guess File Descriptor
+        if (gfd < 0) {
+            log_message("ERROR", "Error: %s", sterror(errno));
+            break;
+        }
+        if (write(gfd, msg, msglen) < 0) {
+            log_message("ERROR", "Error: %s", sterror(errno));
+            close(gfd);
+            break;
+        }
+        close(gfd);
+
+        //Wait for answer on our pipe (non blocking)
+        ssize_t a;
+        do {
+            a = read(fd, answer, sizeof(answer)-1);
+            if (a < 0 && errno == EAGAIN) {
+                usleep(10 * 1000); //10ms
+                continue;
+            }
+            if (a <= 0) {
+                log_message("ERROR", "Error: %s", sterror(errno));
+                continue;
+            }
+        } while (a <= 0);
+
+        answer[a] = '\0';
+        if (strcmp(answer, "OK") == 0) //Case: guess was correct!
+            log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
+
+        iter++;
     }
 
-    return threads; //Return array of threads IDs
+    //Cleanup
+    close(fd);
+    unlink(pipe_name);
+    close_file_logging();
+    return 0;
 }
