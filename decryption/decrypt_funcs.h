@@ -1,9 +1,4 @@
-#include <stdio.h>
 #include <stdbool.h>
-#include <time.h>
-#include <stdarg.h>
-#include <mta_crypt.h>
-#include <mta_rand.h>
 
 //Functions Declarations
 bool try_decrypt(char* encrypted, unsigned int enc_len, char* key, unsigned int key_len, char* guess);
