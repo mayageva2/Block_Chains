@@ -88,15 +88,5 @@ int main(int argc, char *argv[])
 
    pthread_join(encrypter_thread, NULL);
 
-   //Wait for decryptors work
-   pthread_mutex_lock(&shared.mutex);
-   pthread_cond_broadcast(&shared.cond);
-   pthread_cond_broadcast(&shared.guess_cond);
-   pthread_mutex_unlock(&shared.mutex);
-
-   for (int i = 0; i < num_decrypters; i++) 
-       pthread_join(decrypter_threads[i], NULL);
-
-   free(decrypter_threads);
    return 0;
 }
