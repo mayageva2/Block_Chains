@@ -1,0 +1,20 @@
+#base image
+FROM ubuntu:24.04
+
+#update and install required packages- gcc and make
+RUN apt-get update && apt-get install -y gcc make
+
+#ensure that the /var/log directory exists
+RUN mkdir -p /var/log
+
+#set the working directory inside the container to /app
+WORKDIR /app
+
+#copy source and header files into the containers /app directory
+COPY encrypt.c encrypt.h config.c config.h shared.h .
+
+#compile the encryptor program
+RUN gcc -o encryptor encrypt.c config.c -lpthread
+
+#set the default command to run the encryptor executable
+CMD ["./encryptor"]

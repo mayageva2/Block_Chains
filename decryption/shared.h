@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #define MAX_PASSWORD_LENGTH 1024
+#define MAX_INFO_NAME_LENGTH 128
 
 typedef struct {
     char encrypted[MAX_PASSWORD_LENGTH]; //Encrypted password
