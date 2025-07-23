@@ -69,30 +69,3 @@ void close_file_logging() {
         log_fp = NULL;
     }
 }
-
-//This function reads the password length from a config file
-int read_config_password_length(const char* path) {
-
-    FILE* file = fopen(path, "r");
-    if (!file) {
-        perror("Open config file failed");
-        exit(1);
-    }
-
-    int len = 0;
-    if (fscanf(file, "PASSWORD_LENGTH=%d", &len) != 1) {
-        fprintf(stderr, "Invalid config file formatin %s", path);
-        fclose(file);
-        exit(1);
-    }
-    fclose(file);
-
-    if (len <= 0 || len > MAX_PASSWORD_LENGTH || (len%8) != 0) {
-        fprintf(stderr,
-            "Config error: password length must be greater than 0, smaller than %d and divisible by 8 (got %d)\n",
-            MAX_PASSWORD_LENGTH, len);
-            exit(1);
-    }
-
-    return len;
-}
