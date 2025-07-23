@@ -152,13 +152,11 @@ void *encrypter(void *arg) {
         char buf[MAX_REG_MSG];
         ssize_t bytes;
         char subscription_request = false;
-
         //Reads from pipe and get encrypter pipe data
         while ((bytes = read(pipe_fd, buf, sizeof(buf) - 1)) > 0) {
             buf[bytes] = '\0';
             buf[strcspn(buf, "\n")] = '\0';
             int id;
-
             char* curr_guess = handle_pipe_message(buf, &decrypters_count, &id);
             if (strcmp(curr_guess, "pipe subscription request") == 0)
                 subscription_request = true;
@@ -171,6 +169,21 @@ void *encrypter(void *arg) {
             }
         }
         
+         //Send password to decrypter pipe
+        if(subscription_request) {
+            for(int i = 0; i < decrypters_count; i++){
+                int fd = open(decrypters_pipes[i], O_WRONLY | O_NONBLOCK);
+                if (fd != -1) {
+                    write(fd, encrypted, password_length);
+                    close(fd);
+                } 
+                else {
+                    perror("open decrypter pipe failed");
+                    printf("errno: %d (%s)\n", errno, strerror(errno));
+                }
+            }
+        }
+
         //Creating new password
         if (first || shared.decrypted) {
             first = false;
@@ -184,21 +197,6 @@ void *encrypter(void *arg) {
             encrypt_password(password, key, encrypted, password_length, password_length / 8);
             
             bool password_sent[MAX_DECRYPTERS] = {false};
-            
-            //Send password to decrypter pipe
-            if(subscription_request) {
-                for(int i = 0; i < decrypters_count; i++){
-                    int fd = open(decrypters_pipes[i], O_WRONLY | O_NONBLOCK);
-                    if (fd != -1) {
-                        write(fd, encrypted, password_length);
-                        close(fd);
-                    } 
-                    else {
-                        perror("open decrypter pipe failed");
-                        printf("errno: %d (%s)\n", errno, strerror(errno));
-                    }
-                }
-            }
 
             //Write encrypted password to shared buffer
             memcpy(shared.encrypted, encrypted, password_length);
@@ -219,9 +217,6 @@ void *encrypter(void *arg) {
                 shared.decrypted = true;
             }
         }
-        else //Case: no timeout, AKA -t flag wasn't given
-            while (!shared.guess_pending && !shared.decrypted)
-                sleep(1);
 
         //If a guess is pending, handle
         if (shared.guess_pending) {
@@ -259,7 +254,6 @@ void *encrypter(void *arg) {
                     print_wrong_guess(decrypter_id, guess_curr, password);
             }
         }
-            
     }
     return NULL;
 }

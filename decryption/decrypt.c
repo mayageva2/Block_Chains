@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 199309L
+#define _DEFAULT_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,7 +60,7 @@ int main () {
         exit(1);
     }
     char reg_msg[MAX_PIPE_NAME_LENGTH + 16] = {};
-    snprintf(reg_msg, sizeof(reg_msg), "REGISTER:%s", pipe_name);
+    strncpy(reg_msg, pipe_name, sizeof(reg_msg) - 1);
     if (write(reg_fd, reg_msg, strlen(reg_msg)) < 0) {
         log_message("ERROR", "Error: %s", strerror(errno));
         close(reg_fd);
@@ -71,7 +72,7 @@ int main () {
     log_message("INFO", "Sent connect request to server");
 
     //Open our Named Pipe for blocking read
-    int fd = open(pipe_name, O_RDONLY);
+    int fd = open(pipe_name, O_RDWR);
     if (fd < 0) {
         log_message("ERROR", "Error: %s", strerror(errno));
         unlink(pipe_name);
