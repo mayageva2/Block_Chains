@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdarg.h>
+#include <ctype.h>
 #include <mta_crypt.h>
 #include <mta_rand.h>
 #include "decrypt_funcs.h"
