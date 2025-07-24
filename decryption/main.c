@@ -3,22 +3,8 @@
 #include <getopt.h>
 #include <string.h>
 #include <mta_crypt.h> 
-#include "shared.h"
 #include "encrypt_funcs.h"
 #include "config.h"
-
-//Global variables
-SharedData shared = {
-    .length = 0,
-    .new_data = false,
-    .decrypted = false,
-    .guess_pending = false,
-    .guesser_id = -1,
-};
-int password_length;
-int num_decrypters;
-int timeout_seconds = 0;
-bool running = true;
 
 //This function prints the correct usage of the program when incorrect or missing arguments are provided
 void print_usage() {

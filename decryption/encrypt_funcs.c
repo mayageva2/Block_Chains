@@ -10,21 +10,21 @@
 #include <unistd.h>
 #include <stdlib.h> 
 #include <errno.h> 
+#include <stdbool.h>
 #include <sys/stat.h>
-#include "shared.h"
 #include "encrypt_funcs.h"
-
-//Global variables
-extern SharedData shared;
-extern int password_length;
-extern int num_decrypters;
-extern int timeout_seconds;
-extern bool running;
 
 #define MAX_REG_MSG 128
 #define MAX_DECRYPTERS 100
+#define MAX_PASSWORD_LENGTH 1024
 
 char decrypters_pipes[MAX_DECRYPTERS][128];
+
+typedef struct {
+    int decrypter_id;
+    char guess[MAX_PASSWORD_LENGTH];
+    bool is_pending;
+} GuessState;
 
 //This function generates a printable password and writes it into the provided buffer; Helper function
 void generate_printable_password(char *password, int length) {
@@ -53,11 +53,11 @@ void print_new_pw(char* password, char* key, char* encrypted) {
 }
 
 //This function prints a success log when a correct password guess is received from a decrypter
-void print_success(int decrypter_id, char* password) {
+void print_success(int decrypter_id, char* password, char* guess) {
     printf("%ld\t[ENCRYPTER]\t[OK]\tPassword decrypted successfully by client #%d, received (%.*s), is (%.*s)\n",
     time(NULL),
     decrypter_id,
-    password_length, shared.guess,
+    password_length, guess,
     password_length, password);
 }
 
@@ -135,6 +135,10 @@ char* handle_pipe_message(char *msg, int *decrypters_count, int* id) {
 //This function is executed by the encrypter thread, and coordinates password generation and validation; Encrypter thread function
 void *encrypter(void *arg) {
     bool first = true;
+    GuessState current_guess = {.is_pending = false};
+    bool password_decrypted = false;
+    char prev_password[MAX_PASSWORD_LENGTH] = {};
+
     create_main_pipe();
     
     int pipe_fd = open("/mnt/mta/encrypter_pipe", O_RDWR  | O_NONBLOCK); //Opens pipe for read and write
@@ -148,7 +152,7 @@ void *encrypter(void *arg) {
     char encrypted[MAX_PASSWORD_LENGTH];
     int decrypters_count = 0;
 
-    while (running) {
+    while (1) {
         char buf[MAX_REG_MSG];
         ssize_t bytes;
         char subscription_request = false;
@@ -163,16 +167,16 @@ void *encrypter(void *arg) {
             else 
             {
                 subscription_request = false;
-                memcpy(shared.guess, curr_guess, password_length);
-                shared.guesser_id = id;
-                shared.guess_pending = true;
+                memcpy(current_guess.guess, curr_guess, password_length);
+                current_guess.decrypter_id = id;
+                current_guess.is_pending = true;
             }
         }
         
          //Send password to decrypter pipe
         if(subscription_request) {
             for(int i = 0; i < decrypters_count; i++){
-                int fd = open(decrypters_pipes[i], O_WRONLY | O_NONBLOCK);
+                int fd = open(decrypters_pipes[i], O_WRONLY); 
                 if (fd != -1) {
                     write(fd, encrypted, password_length);
                     close(fd);
@@ -185,12 +189,12 @@ void *encrypter(void *arg) {
         }
 
         //Creating new password
-        if (first || shared.decrypted) {
+        if (first || password_decrypted) {
             first = false;
-            shared.decrypted = false; //Alert the new password going to be encrypted is not yet decrypted
+            password_decrypted = false; //Alert the new password going to be encrypted is not yet decrypted
 
             //Copy previous password before regenerating
-            memcpy(shared.previous_password, password, password_length);
+            memcpy(prev_password, password, password_length);
 
             generate_printable_password(password, password_length);
             MTA_get_rand_data(key, password_length / 8);
@@ -198,39 +202,34 @@ void *encrypter(void *arg) {
             
             bool password_sent[MAX_DECRYPTERS] = {false};
 
-            //Write encrypted password to shared buffer
-            memcpy(shared.encrypted, encrypted, password_length);
-            shared.length = password_length;
-            shared.new_data = true; //New encrypted password available
-            shared.guess_pending = false;
-
             print_new_pw(password, key, encrypted); //Prints new password info
         }
         
         time_t start = time(NULL);
 
-        if (!shared.guess_pending && timeout_seconds > 0) {
+       if (!current_guess.is_pending && timeout_seconds > 0) {
             sleep(timeout_seconds);
 
-            if (!shared.guess_pending && !shared.decrypted) {
+            if (!current_guess.is_pending && !password_decrypted) {
                 print_timeout();
-                shared.decrypted = true;
+                password_decrypted = true;
             }
-        }
+        }   
 
         //If a guess is pending, handle
-        if (shared.guess_pending) {
-            int decrypter_id = shared.guesser_id;
+        if (current_guess.is_pending) {
+            int decrypter_id = current_guess.decrypter_id;
             char guess_curr[MAX_PASSWORD_LENGTH] = {};
-            memcpy(guess_curr, shared.guess, password_length);
+            memcpy(guess_curr, current_guess.guess, password_length);
 
             //Mark the slot free for the next guess
-            shared.guess_pending = false;
+            current_guess.is_pending = false;
+
 
             bool match = (memcmp(guess_curr, password, password_length) == 0);
-            if (match && !shared.decrypted) {
-                shared.decrypted = true;
-                print_success(decrypter_id, password);
+            if (match && !password_decrypted) {
+                password_decrypted = true;
+                print_success(decrypter_id, password, current_guess.guess);
 
                 // Send new encrypted password to all decrypter's pipes
                 for (int i = 0; i < decrypters_count; i++) {
@@ -247,7 +246,7 @@ void *encrypter(void *arg) {
             else if (match) //Case: old guess
                 print_old_pw_guess(decrypter_id, guess_curr);
             else {
-                bool old_match = (memcmp(guess_curr, shared.previous_password, password_length) == 0);
+                bool old_match = (memcmp(guess_curr, prev_password, password_length) == 0);
                 if (old_match) //Case: Old password guess
                     print_old_pw_guess(decrypter_id, guess_curr);
                 else //Case: Wrong guess
