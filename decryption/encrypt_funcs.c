@@ -107,6 +107,20 @@ void create_main_pipe() {
     printf("Created main pipe: %s\n", pipe_path);
 }
 
+//Write msg to decryptor pipe
+void send_msg_to_decryptor_pipe(const char* decrypter_pipe, char* msg, int len)
+{
+    int fd = open(decrypter_pipe, O_WRONLY); 
+    if (fd != -1) {
+        write(fd, msg, len);
+        close(fd);
+    } 
+    else {
+        perror("open decrypter pipe failed");
+        printf("errno: %d (%s)\n", errno, strerror(errno));
+    }
+}
+
 //This func checks if message in pipe is subscription or guess
 char* handle_pipe_message(char *msg, int *decrypters_count, int* id) {
     const char *prefix = "/mnt/mta/decrypter_pipe_";
@@ -176,15 +190,7 @@ void *encrypter(void *arg) {
          //Send password to decrypter pipe
         if(subscription_request) {
             for(int i = 0; i < decrypters_count; i++){
-                int fd = open(decrypters_pipes[i], O_WRONLY); 
-                if (fd != -1) {
-                    write(fd, encrypted, password_length);
-                    close(fd);
-                } 
-                else {
-                    perror("open decrypter pipe failed");
-                    printf("errno: %d (%s)\n", errno, strerror(errno));
-                }
+                send_msg_to_decryptor_pipe(decrypters_pipes[i], encrypted, password_length);
             }
         }
 
@@ -230,17 +236,15 @@ void *encrypter(void *arg) {
             if (match && !password_decrypted) {
                 password_decrypted = true;
                 print_success(decrypter_id, password, current_guess.guess);
-
+                char *success_pipe = "/mnt/mta/decrypter_pipe_";
+                int len = strlen(success_pipe);
+                success_pipe[len] = decrypter_id;
+                success_pipe[len+1] = '\0';
+                send_msg_to_decryptor_pipe(success_pipe, "OK", 2);
+                
                 // Send new encrypted password to all decrypter's pipes
                 for (int i = 0; i < decrypters_count; i++) {
-                    int fd = open(decrypters_pipes[i], O_WRONLY | O_NONBLOCK);
-                    if (fd != -1) {
-                        write(fd, encrypted, password_length);
-                        close(fd);
-                    } else {
-                        perror("open decrypter pipe failed (post-success)");
-                        printf("errno: %d (%s)\n", errno, strerror(errno));
-                    }
+                    send_msg_to_decryptor_pipe(decrypters_pipes[i], encrypted, password_length);
                 }
             }
             else if (match) //Case: old guess
@@ -249,8 +253,14 @@ void *encrypter(void *arg) {
                 bool old_match = (memcmp(guess_curr, prev_password, password_length) == 0);
                 if (old_match) //Case: Old password guess
                     print_old_pw_guess(decrypter_id, guess_curr);
-                else //Case: Wrong guess
+                else { //Case: Wrong guess
                     print_wrong_guess(decrypter_id, guess_curr, password);
+                    char *failed_pipe = "/mnt/mta/decrypter_pipe_";
+                    int len = strlen(failed_pipe);
+                    failed_pipe[len] = decrypter_id;
+                    failed_pipe[len+1] = '\0';
+                    send_msg_to_decryptor_pipe(failed_pipe, "NO", 2);
+                }
             }
         }
     }
