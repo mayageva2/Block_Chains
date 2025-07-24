@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include "decrypt_funcs.h"
+#include "config.h"
 
 #define ENCRYPTER_PIPE_FILE_PATH "/mnt/mta/encrypter_pipe"
 #define CONFIG_FILE_PATH "/mnt/mta/mtacrypt.conf"
