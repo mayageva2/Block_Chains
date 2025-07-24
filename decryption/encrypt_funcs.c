@@ -17,6 +17,7 @@
 #define MAX_REG_MSG 128
 #define MAX_DECRYPTERS 100
 #define MAX_PASSWORD_LENGTH 1024
+#define MAX_PATH_LEN 30
 
 char decrypters_pipes[MAX_DECRYPTERS][128];
 
@@ -236,11 +237,9 @@ void *encrypter(void *arg) {
             if (match && !password_decrypted) {
                 password_decrypted = true;
                 print_success(decrypter_id, password, current_guess.guess);
-                char *success_pipe = "/mnt/mta/decrypter_pipe_";
-                int len = strlen(success_pipe);
-                success_pipe[len] = decrypter_id;
-                success_pipe[len+1] = '\0';
-                send_msg_to_decryptor_pipe(success_pipe, "OK", 2);
+                char success_pipe[MAX_PATH_LEN];
+                snprintf(success_pipe, sizeof(success_pipe), "/mnt/mta/decrypter_pipe_%d", decrypter_id);
+                send_msg_to_decryptor_pipe(success_pipe, "NO", 2);
                 
                 // Send new encrypted password to all decrypter's pipes
                 for (int i = 0; i < decrypters_count; i++) {
@@ -255,10 +254,8 @@ void *encrypter(void *arg) {
                     print_old_pw_guess(decrypter_id, guess_curr);
                 else { //Case: Wrong guess
                     print_wrong_guess(decrypter_id, guess_curr, password);
-                    char *failed_pipe = "/mnt/mta/decrypter_pipe_";
-                    int len = strlen(failed_pipe);
-                    failed_pipe[len] = decrypter_id;
-                    failed_pipe[len+1] = '\0';
+                    char failed_pipe[MAX_PATH_LEN];
+                    snprintf(failed_pipe, sizeof(failed_pipe), "/mnt/mta/decrypter_pipe_%d", decrypter_id);
                     send_msg_to_decryptor_pipe(failed_pipe, "NO", 2);
                 }
             }
