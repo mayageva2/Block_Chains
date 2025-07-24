@@ -239,7 +239,7 @@ void *encrypter(void *arg) {
                 print_success(decrypter_id, password, current_guess.guess);
                 char success_pipe[MAX_PATH_LEN];
                 snprintf(success_pipe, sizeof(success_pipe), "/mnt/mta/decrypter_pipe_%d", decrypter_id);
-                send_msg_to_decryptor_pipe(success_pipe, "NO", 2);
+                send_msg_to_decryptor_pipe(success_pipe, "OK", 2);
                 
                 // Send new encrypted password to all decrypter's pipes
                 for (int i = 0; i < decrypters_count; i++) {
