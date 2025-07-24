@@ -4,22 +4,15 @@
 #include <getopt.h>
 #include <string.h>
 #include <mta_crypt.h>
-#include "shared.h"
 #include "config.h"
 #include "encrypt_funcs.h"
 
-// Global variables
-SharedData shared = {
-    .length = 0,
-    .new_data = false,
-    .decrypted = false,
-    .guess_pending = false,
-    .guesser_id = -1,
-};
+#define MAX_PASSWORD_LENGTH 1024
+#define MAX_INFO_NAME_LENGTH 128
+
 int password_length;
 int num_decrypters;
-int timeout_seconds = 0;
-bool running = true;
+int timeout_seconds;
 
 void print_usage() {
     printf("Usage: encrypt.out [-t|--timeout seconds]\n");
