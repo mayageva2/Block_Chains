@@ -4,3 +4,4 @@ blocks
 *.a
 tmp_deb/
 *.deb
+*.out

@@ -115,24 +115,29 @@ int main () {
     int iter = 1;
     //Brute-force loop
     while (running) {
-        //Each iteration check blocking for a new password pushed by encrypter
-        ssize_t m = read(fd, encrypted, enc_len);
-        if (m == enc_len) //Case: received new encrypted password
-            log_message("INFO", "Received new encrypted password %s", encrypted);
-        else if (m == -1 && errno == EAGAIN) {
-            //No new password
+        
+        if(iter != 1){
+            //Each iteration check blocking for a new password pushed by encrypter
+            ssize_t m = read(fd, encrypted, enc_len);
+            if (m == enc_len) //Case: received new encrypted password
+                log_message("INFO", "Received new encrypted password %s", encrypted);
+            else if (m == -1 && errno == EAGAIN) {
+                //No new password
+            }
+            else if (m == 0) {
+                log_message("ERROR", "Pipe was closed by encrypter. Exiting.");
+                break;
+            }
+            else
+                log_message("ERROR", "Partial password or unexpected read: m = %zd", m);
         }
-        else if (m == 0) {
-            log_message("ERROR", "Pipe was closed by encrypter. Exiting.");
-            break;
-        }
-        else
-            log_message("ERROR", "Partial password or unexpected read: m = %zd", m);
-
+        
         //Generate a random key and try decrypt
+        MTA_crypt_init();
         MTA_get_rand_data(key, key_len);
-        if (!try_decrypt(encrypted, enc_len, key, key_len, guess)) //Case: is not a viable guess
+        if (!try_decrypt(encrypted, enc_len, key, key_len, guess)){ //Case: is not a viable guess
             continue;
+        }
 
         //Send our guess back; format: "<pipe_name> <guess>"
         char msg[MAX_MSG_LEN] = {};
