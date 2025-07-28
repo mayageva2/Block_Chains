@@ -52,6 +52,7 @@ int main () {
         exit(1);
     }
     init_file_logging(id);
+    MTA_crypt_init();
 
     //Register with the encrypter
     int reg_fd = open(ENCRYPTER_PIPE_FILE_PATH, O_WRONLY);
@@ -136,7 +137,6 @@ int main () {
         //}
         
         //Generate a random key and try decrypt
-        MTA_crypt_init();
         MTA_get_rand_data(key, key_len);
         if (!try_decrypt(encrypted, enc_len, key, key_len, guess)){ //Case: is not a viable guess
             continue;
