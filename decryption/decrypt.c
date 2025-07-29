@@ -118,7 +118,7 @@ int main () {
     int iter = 1;
     //Brute-force loop
     while (running) {
-       // if(iter != 1){
+       
         //Each iteration check blocking for a new password pushed by encrypter
         ssize_t m = read(fd, encrypted, enc_len);
         if (m == enc_len){ //Case: received new encrypted password
@@ -134,7 +134,6 @@ int main () {
         }
         else
             log_message("ERROR", "Partial password or unexpected read: m = %zd", m);
-        //}
         
         //Generate a random key and try decrypt
         MTA_get_rand_data(key, key_len);
@@ -175,15 +174,15 @@ int main () {
                     continue;
                 }
             }
-
+            printf("answer = %s\n", answer);
             answer[a] = '\0';
             if (strcmp(answer, "OK") == 0) //Case: guess was correct!
                 log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
             else if (strcmp(answer, "NO") == 0)
                 newPwd = true;
 
-    }
         iter++;
+        }
     }
 
     //Cleanup
@@ -191,4 +190,5 @@ int main () {
     unlink(pipe_name);
     close_file_logging();
     return 0;
+    
 }
