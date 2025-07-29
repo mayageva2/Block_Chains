@@ -171,20 +171,25 @@ void *encrypter(void *arg) {
         char buf[MAX_REG_MSG];
         ssize_t bytes;
         char subscription_request = false;
-        //Reads from pipe and get encrypter pipe data
-        while ((bytes = read(pipe_fd, buf, sizeof(buf) - 1)) > 0) {
-            buf[bytes] = '\0';
-            buf[strcspn(buf, "\n")] = '\0';
-            int id;
-            char* curr_guess = handle_pipe_message(buf, &decrypters_count, &id);
-            if (strcmp(curr_guess, "pipe subscription request") == 0)
-                subscription_request = true;
-            else 
-            {
-                subscription_request = false;
-                memcpy(current_guess.guess, curr_guess, password_length);
-                current_guess.decrypter_id = id;
-                current_guess.is_pending = true;
+
+        
+        if(!password_decrypted)
+        {
+            //Reads from pipe and get encrypter pipe data
+            while ((bytes = read(pipe_fd, buf, sizeof(buf) - 1)) > 0) {
+                buf[bytes] = '\0';
+                buf[strcspn(buf, "\n")] = '\0';
+                int id;
+                char* curr_guess = handle_pipe_message(buf, &decrypters_count, &id);
+                if (strcmp(curr_guess, "pipe subscription request") == 0)
+                    subscription_request = true;
+                else 
+                {
+                    subscription_request = false;
+                    memcpy(current_guess.guess, curr_guess, password_length);
+                    current_guess.decrypter_id = id;
+                    current_guess.is_pending = true;
+                }
             }
         }
         
@@ -193,11 +198,11 @@ void *encrypter(void *arg) {
             for(int i = 0; i < decrypters_count; i++){
                 send_msg_to_decryptor_pipe(decrypters_pipes[i], encrypted, password_length);
             }
+            subscription_request = false;
         }
 
         //Creating new password
         if (first || password_decrypted) {
-            first = false;
             password_decrypted = false; //Alert the new password going to be encrypted is not yet decrypted
 
             //Copy previous password before regenerating
@@ -210,6 +215,13 @@ void *encrypter(void *arg) {
             bool password_sent[MAX_DECRYPTERS] = {false};
 
             print_new_pw(password, key, encrypted); //Prints new password info
+            if (!first) {
+                // Send new encrypted password to all decrypter's pipes
+                for (int i = 0; i < decrypters_count; i++) {
+                    send_msg_to_decryptor_pipe(decrypters_pipes[i], encrypted, password_length);
+                }
+            }
+            first = false;
         }
         
         time_t start = time(NULL);
@@ -232,7 +244,6 @@ void *encrypter(void *arg) {
             //Mark the slot free for the next guess
             current_guess.is_pending = false;
 
-
             bool match = (memcmp(guess_curr, password, password_length) == 0);
             if (match && !password_decrypted) {
                 password_decrypted = true;
@@ -240,11 +251,7 @@ void *encrypter(void *arg) {
                 char success_pipe[MAX_PATH_LEN];
                 snprintf(success_pipe, sizeof(success_pipe), "/mnt/mta/decrypter_pipe_%d", decrypter_id);
                 send_msg_to_decryptor_pipe(success_pipe, "OK", 2);
-                
-                // Send new encrypted password to all decrypter's pipes
-                for (int i = 0; i < decrypters_count; i++) {
-                    send_msg_to_decryptor_pipe(decrypters_pipes[i], encrypted, password_length);
-                }
+                sleep(1);
             }
             else if (match) //Case: old guess
                 print_old_pw_guess(decrypter_id, guess_curr);
@@ -261,5 +268,6 @@ void *encrypter(void *arg) {
             }
         }
     }
+    close(pipe_fd);
     return NULL;
 }

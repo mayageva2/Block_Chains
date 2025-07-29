@@ -30,6 +30,7 @@ int decrypter_id = -1;
 int main () {
 
     bool running = true;
+    bool newPwd = false;
 
     //Read password length
     int password_length = read_config_password_length(CONFIG_FILE_PATH);
@@ -103,6 +104,7 @@ int main () {
         exit(1);
     }
     log_message("INFO", "Received encrypted password");
+    newPwd = true;
 
     //Switch to non-blocking mode fd
     int flags = fcntl(fd, F_GETFL, 0);
@@ -116,22 +118,23 @@ int main () {
     int iter = 1;
     //Brute-force loop
     while (running) {
-        
-        if(iter != 1){
-            //Each iteration check blocking for a new password pushed by encrypter
-            ssize_t m = read(fd, encrypted, enc_len);
-            if (m == enc_len) //Case: received new encrypted password
-                log_message("INFO", "Received new encrypted password %s", encrypted);
-            else if (m == -1 && errno == EAGAIN) {
-                //No new password
-            }
-            else if (m == 0) {
-                log_message("ERROR", "Pipe was closed by encrypter. Exiting.");
-                break;
-            }
-            else
-                log_message("ERROR", "Partial password or unexpected read: m = %zd", m);
+       // if(iter != 1){
+        //Each iteration check blocking for a new password pushed by encrypter
+        ssize_t m = read(fd, encrypted, enc_len);
+        if (m == enc_len){ //Case: received new encrypted password
+            log_message("INFO", "Received new encrypted password %s", encrypted);
+            newPwd = true;
         }
+        else if (m == -1 && errno == EAGAIN) {
+            //No new password
+        }
+        else if (m == 0) {
+            log_message("ERROR", "Pipe was closed by encrypter. Exiting.");
+            break;
+        }
+        else
+            log_message("ERROR", "Partial password or unexpected read: m = %zd", m);
+        //}
         
         //Generate a random key and try decrypt
         MTA_get_rand_data(key, key_len);
@@ -140,41 +143,43 @@ int main () {
         }
 
         //Send our guess back; format: "<pipe_name> <guess>"
-        char msg[MAX_MSG_LEN] = {};
-        int msglen = snprintf(msg, sizeof(msg), "%s ", pipe_name);
-        memcpy(msg+msglen, guess, enc_len);
-        msglen += enc_len;
+        if(newPwd) {
+            newPwd = false;
+            char msg[MAX_MSG_LEN] = {};
+            int msglen = snprintf(msg, sizeof(msg), "%s ", pipe_name);
+            memcpy(msg+msglen, guess, enc_len);
+            msglen += enc_len;
 
-        int gfd = open(ENCRYPTER_PIPE_FILE_PATH, O_WRONLY); //Guess File Descriptor
-        if (gfd < 0) {
-            log_message("ERROR", "Error: %s", strerror(errno));
-            break;
-        }
-        if (write(gfd, msg, msglen) < 0) {
-            log_message("ERROR", "Error: %s", strerror(errno));
-            close(gfd);
-            break;
-        }
-        close(gfd);
-
-        //Wait for answer on our pipe (non blocking)
-        ssize_t a;
-        do {
-            a = read(fd, answer, sizeof(answer)-1);
-            if (a < 0 && errno == EAGAIN) {
-                usleep(10 * 1000); //10ms
-                continue;
-            }
-            if (a <= 0) {
+            int gfd = open(ENCRYPTER_PIPE_FILE_PATH, O_WRONLY); //Guess File Descriptor
+            if (gfd < 0) {
                 log_message("ERROR", "Error: %s", strerror(errno));
-                continue;
+                break;
             }
-        } while (a <= 0);
+            if (write(gfd, msg, msglen) < 0) {
+                log_message("ERROR", "Error: %s", strerror(errno));
+                close(gfd);
+                break;
+            }
+            close(gfd);
 
-        answer[a] = '\0';
-        if (strcmp(answer, "OK") == 0) //Case: guess was correct!
-            log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
+            //Wait for answer on our pipe (non blocking)
+            ssize_t a = 0;
+            while (a <= 0) {
+                a = read(fd, answer, sizeof(answer)-1);
+                if (a < 0 && errno == EAGAIN) {
+                    usleep(10 * 1000); //10ms
+                    continue;
+                }
+                if (a <= 0) {
+                    log_message("ERROR", "Error: %s", strerror(errno));
+                    continue;
+                }
+            }
 
+            answer[a] = '\0';
+            if (strcmp(answer, "OK") == 0) //Case: guess was correct!
+                log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
+    }
         iter++;
     }
 
