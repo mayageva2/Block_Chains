@@ -115,10 +115,11 @@ int main () {
 		exit(1);
 	}
 
-    int iter = 1;
+    int iter = 0;
     //Brute-force loop
     while (running) {
-       
+       iter++;
+
         //Each iteration check blocking for a new password pushed by encrypter
         ssize_t m = read(fd, encrypted, enc_len);
         if (m == enc_len){ //Case: received new encrypted password
@@ -179,7 +180,6 @@ int main () {
             if (strcmp(answer, "OK") == 0) //Case: guess was correct!
                 log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
 
-        iter++;
         }
     }
 
