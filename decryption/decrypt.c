@@ -174,12 +174,10 @@ int main () {
                     continue;
                 }
             }
-            printf("answer = %s\n", answer);
+           
             answer[a] = '\0';
             if (strcmp(answer, "OK") == 0) //Case: guess was correct!
                 log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
-            else if (strcmp(answer, "NO") == 0)
-                newPwd = true;
 
         iter++;
         }
