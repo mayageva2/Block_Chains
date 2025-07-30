@@ -123,27 +123,94 @@ void send_msg_to_decryptor_pipe(const char* decrypter_pipe, char* msg, int len)
 }
 
 //This func checks if message in pipe is subscription or guess
-char* handle_pipe_message(char *msg, int *decrypters_count, int* id) {
+char* handle_pipe_message(char *msg, int* decrypters_count, int* id) {
     const char *prefix = "/mnt/mta/decrypter_pipe_";
     size_t prefix_len = strlen(prefix);
     
     //Incase of password message 
     char *space = strchr(msg, ' ');
-
     size_t path_len = space ? (size_t)(space - msg) : strlen(msg); //Address length
-    strncpy(decrypters_pipes[*decrypters_count], msg, sizeof(decrypters_pipes[0]) - 1);
-    decrypters_pipes[*decrypters_count][path_len] = '\0';
 
     if(space != NULL) {
+       for (int i = 0; i < *decrypters_count; i++) {
+            if (strncmp(decrypters_pipes[i], msg, path_len) == 0) {
+                *id = atoi(decrypters_pipes[i] + prefix_len);
+                break;
+            }
+        }
         char *guess = space + 1;
         return guess;
     }
     else {
+        strncpy(decrypters_pipes[*decrypters_count], msg, sizeof(decrypters_pipes[0]) - 1);
+        decrypters_pipes[*decrypters_count][sizeof(decrypters_pipes[0]) - 1] = '\0';
         (*id) = atoi(decrypters_pipes[*decrypters_count] + prefix_len);
         print_connection((*id), decrypters_pipes[*decrypters_count]);
         (*decrypters_count)++;
-        char* str = "pipe subscription request";
-        return str;
+        return "pipe subscription request"; 
+    }
+}
+
+//This func reads decrypter msg and sends encrypted password to decrypter
+void read_encrypter_pipe_data(int pipe_fd, int *decrypters_count, GuessState* current_guess, char* encrypted) {
+    ssize_t bytes = 0;
+    bool subscription_request = false;
+    char buf[MAX_REG_MSG];
+
+    //Reads from pipe and get encrypter pipe data
+    while ((bytes = read(pipe_fd, buf, sizeof(buf) - 1)) > 0) {
+        buf[bytes] = '\0';
+        buf[strcspn(buf, "\n")] = '\0';
+        int id;
+        char* curr_guess = handle_pipe_message(buf, decrypters_count, &id);
+        if (strcmp(curr_guess, "pipe subscription request") == 0)
+            subscription_request = true;
+        else 
+        {
+            subscription_request = false;
+            memcpy(current_guess->guess, curr_guess, password_length);
+            current_guess->decrypter_id = id;
+            current_guess->is_pending = true;
+        }
+    }
+
+    //Send password to decrypter pipe
+    if(subscription_request) {
+        for(int i = 0; i < *decrypters_count; i++){
+            send_msg_to_decryptor_pipe(decrypters_pipes[i], encrypted, password_length);
+        }
+        subscription_request = false;
+    }
+}
+
+//This func checks if decrypter guess is correct or not and send response
+bool check_guess(GuessState* current_guess, char* password, bool* password_decrypted, char* prev_password ) {
+    int decrypter_id = current_guess->decrypter_id;
+    char guess_curr[MAX_PASSWORD_LENGTH] = {};
+    memcpy(guess_curr, current_guess->guess, password_length);
+    current_guess->is_pending = false;
+
+    char response_pipe[MAX_PATH_LEN];
+    bool match = (memcmp(guess_curr, password, password_length) == 0);
+    bool old_match = (memcmp(guess_curr, prev_password, password_length) == 0);
+
+    snprintf(response_pipe, sizeof(response_pipe), "/mnt/mta/decrypter_pipe_%d", decrypter_id);
+
+    if (match && !(*password_decrypted)) {
+        *password_decrypted = true;
+        print_success(decrypter_id, password, guess_curr);
+        send_msg_to_decryptor_pipe(response_pipe, "OK", 2);
+        sleep(1);
+        return true;
+    } else {
+        if (match || old_match) {
+            print_old_pw_guess(decrypter_id, guess_curr);
+        } else {
+            print_wrong_guess(decrypter_id, guess_curr, password);
+        }
+        send_msg_to_decryptor_pipe(response_pipe, "NO", 2);
+        sleep(1);
+        return false;
     }
 }
 
@@ -155,7 +222,6 @@ void *encrypter(void *arg) {
     char prev_password[MAX_PASSWORD_LENGTH] = {};
 
     create_main_pipe();
-    
     int pipe_fd = open("/mnt/mta/encrypter_pipe", O_RDWR  | O_NONBLOCK); //Opens pipe for read and write
     if (pipe_fd == -1) {
         perror("open pipe");
@@ -166,105 +232,47 @@ void *encrypter(void *arg) {
     char key[MAX_PASSWORD_LENGTH / 8];
     char encrypted[MAX_PASSWORD_LENGTH];
     int decrypters_count = 0;
+    bool subscription_request = false;
 
     while (1) {
-        char buf[MAX_REG_MSG];
-        ssize_t bytes;
-        char subscription_request = false;
 
-        
-        if(!password_decrypted)
-        {
-            //Reads from pipe and get encrypter pipe data
-            while ((bytes = read(pipe_fd, buf, sizeof(buf) - 1)) > 0) {
-                buf[bytes] = '\0';
-                buf[strcspn(buf, "\n")] = '\0';
-                int id;
-                char* curr_guess = handle_pipe_message(buf, &decrypters_count, &id);
-                if (strcmp(curr_guess, "pipe subscription request") == 0)
-                    subscription_request = true;
-                else 
-                {
-                    subscription_request = false;
-                    memcpy(current_guess.guess, curr_guess, password_length);
-                    current_guess.decrypter_id = id;
-                    current_guess.is_pending = true;
-                }
-            }
-        }
-        
-         //Send password to decrypter pipe
-        if(subscription_request) {
-            for(int i = 0; i < decrypters_count; i++){
-                send_msg_to_decryptor_pipe(decrypters_pipes[i], encrypted, password_length);
-            }
-            subscription_request = false;
-        }
-
-        //Creating new password
+        //Generates new password
         if (first || password_decrypted) {
-            password_decrypted = false; //Alert the new password going to be encrypted is not yet decrypted
-
-            //Copy previous password before regenerating
+            password_decrypted = false;
             memcpy(prev_password, password, password_length);
-
             generate_printable_password(password, password_length);
             MTA_get_rand_data(key, password_length / 8);
             encrypt_password(password, key, encrypted, password_length, password_length / 8);
-            
-            bool password_sent[MAX_DECRYPTERS] = {false};
-
-            print_new_pw(password, key, encrypted); //Prints new password info
+            print_new_pw(password, key, encrypted);
             if (!first) {
-                // Send new encrypted password to all decrypter's pipes
                 for (int i = 0; i < decrypters_count; i++) {
                     send_msg_to_decryptor_pipe(decrypters_pipes[i], encrypted, password_length);
                 }
             }
             first = false;
         }
-        
-        time_t start = time(NULL);
 
-       if (!current_guess.is_pending && timeout_seconds > 0) {
-            sleep(timeout_seconds);
-
-            if (!current_guess.is_pending && !password_decrypted) {
-                print_timeout();
-                password_decrypted = true;
-            }
-        }   
-
-        //If a guess is pending, handle
-        if (current_guess.is_pending) {
-            int decrypter_id = current_guess.decrypter_id;
-            char guess_curr[MAX_PASSWORD_LENGTH] = {};
-            memcpy(guess_curr, current_guess.guess, password_length);
-
-            //Mark the slot free for the next guess
-            current_guess.is_pending = false;
-
-            bool match = (memcmp(guess_curr, password, password_length) == 0);
-            if (match && !password_decrypted) {
-                password_decrypted = true;
-                print_success(decrypter_id, password, current_guess.guess);
-                char success_pipe[MAX_PATH_LEN];
-                snprintf(success_pipe, sizeof(success_pipe), "/mnt/mta/decrypter_pipe_%d", decrypter_id);
-                send_msg_to_decryptor_pipe(success_pipe, "OK", 2);
-                sleep(1);
-            }
-            else if (match) //Case: old guess
-                print_old_pw_guess(decrypter_id, guess_curr);
-            else {
-                bool old_match = (memcmp(guess_curr, prev_password, password_length) == 0);
-                if (old_match) //Case: Old password guess
-                    print_old_pw_guess(decrypter_id, guess_curr);
-                else { //Case: Wrong guess
-                    print_wrong_guess(decrypter_id, guess_curr, password);
-                    char failed_pipe[MAX_PATH_LEN];
-                    snprintf(failed_pipe, sizeof(failed_pipe), "/mnt/mta/decrypter_pipe_%d", decrypter_id);
-                    send_msg_to_decryptor_pipe(failed_pipe, "NO", 2);
+        if (timeout_seconds > 0) {
+            bool good_guess = false;
+            time_t start_time = time(NULL);
+            while (time(NULL) - start_time < timeout_seconds){
+                if(!password_decrypted)
+                    read_encrypter_pipe_data(pipe_fd, &decrypters_count, &current_guess, encrypted);
+                if (current_guess.is_pending) {
+                    good_guess = check_guess(&current_guess, password, &password_decrypted, prev_password);
+                    if (good_guess)
+                        break;
                 }
+            }
+            if (!good_guess)
+                print_timeout();
+            password_decrypted = true;
+        }
+        else {
+            if(!password_decrypted)
+                read_encrypter_pipe_data(pipe_fd, &decrypters_count, &current_guess, encrypted);
+            if (current_guess.is_pending) {
+                bool isCorrect = check_guess(&current_guess, password, &password_decrypted, prev_password);
             }
         }
     }
