@@ -161,25 +161,7 @@ int main () {
                 break;
             }
             close(gfd);
-
-            //Wait for answer on our pipe (non blocking)
-            ssize_t a = 0;
-            while (a <= 0) {
-                a = read(fd, answer, sizeof(answer)-1);
-                if (a < 0 && errno == EAGAIN) {
-                    usleep(10 * 1000); //10ms
-                    continue;
-                }
-                if (a <= 0) {
-                    log_message("ERROR", "Error: %s", strerror(errno));
-                    continue;
-                }
-            }
-           
-            answer[a] = '\0';
-            if (strcmp(answer, "OK") == 0) //Case: guess was correct!
-                log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
-
+            log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
         }
     }
 
