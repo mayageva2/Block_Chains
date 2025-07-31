@@ -199,8 +199,6 @@ bool check_guess(GuessState* current_guess, char* password, bool* password_decry
     if (match && !(*password_decrypted)) {
         *password_decrypted = true;
         print_success(decrypter_id, password, guess_curr);
-        send_msg_to_decryptor_pipe(response_pipe, "OK", 2);
-        sleep(1);
         return true;
     } else {
         if (match || old_match) {
@@ -208,8 +206,6 @@ bool check_guess(GuessState* current_guess, char* password, bool* password_decry
         } else {
             print_wrong_guess(decrypter_id, guess_curr, password);
         }
-        send_msg_to_decryptor_pipe(response_pipe, "NO", 2);
-        sleep(1);
         return false;
     }
 }
