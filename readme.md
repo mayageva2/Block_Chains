@@ -73,7 +73,7 @@ This will terminate both the running processes and their containers immediately.
 - **Graceful Timeout Handling:**  
   Supports optional timeout to automatically regenerate password to decrypt.
   
-  - **Logging Per Container:**  
+- **Logging Per Container:**  
   Each container writes detailed logs to a dedicated file in /var/log, allowing real-time monitoring from separate terminals.
   
 ---
