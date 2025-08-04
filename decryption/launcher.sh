@@ -4,9 +4,11 @@ NUM_DECRYPTERS=$1
 TIMEOUT=$2
 PASSWORD_LENGTH=$3
 
-# Set up shared volume path for named pipes and config file
+# Set up shared volume path for named pipes and config file and logs file
 VOLUME_PATH="./mnt/mta"
+LOG_VOLUME="./mnt/logs"
 mkdir -p "$VOLUME_PATH"
+mkdir -p "$LOG_VOLUME"
 
 # Create configuration file with the password length
 echo "password_length=$PASSWORD_LENGTH" > "$VOLUME_PATH/mtacrypt.conf"
@@ -15,6 +17,7 @@ echo "password_length=$PASSWORD_LENGTH" > "$VOLUME_PATH/mtacrypt.conf"
 docker run --rm \
   --name encrypter \
   -v "$VOLUME_PATH":/mnt/mta \
+  -v "$LOG_VOLUME":/var/log  \
   encrypter_img \
   ./encrypter -t "$TIMEOUT" &
 ENCRYPTER_PID=$!
@@ -28,6 +31,7 @@ for i in $(seq 1 "$NUM_DECRYPTERS"); do
     --name "decrypter_$i" \
     -e DECRYPTER_ID=$i \
     -v "$VOLUME_PATH":/mnt/mta \
+    -v "$LOG_VOLUME":/var/log  \
     decrypter_img &
 done
 
@@ -40,4 +44,3 @@ trap 'echo "[LAUNCHER] Stopping decrypters..."; \
       
 # Wait for the encrypter container to finish
 wait $ENCRYPTER_PID
-
