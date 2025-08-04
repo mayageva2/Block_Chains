@@ -10,12 +10,12 @@
 
 ## Overview
 
-This project implements a multi-threaded C program that demonstrates password encryption and brute-force decryption using a "MTA Crypto" library. The system includes:
+This project implements a multi-process Dockerized C program that demonstrates password encryption and brute-force decryption using a "MTA Crypto" library. The system includes:
 
-- An encrypter thread that generates a random printable password, encrypts it using a randomly generated key, and shares it with all decrypter threads.
-- Multiple decrypter threads that attempt to brute-force the key used for encryption.
-- POSIX threads (`pthreads`) for synchronization.
-- Shared memory structure and condition variables to manage communication between threads.
+- Encryptor container that generates a random printable password, encrypts it using a randomly generated key, and distributes it via named pipe.
+- Multiple Decryptor containers, each attempting to brute-force the key using the encrypted password.
+- Named Pipes (FIFOs) in a shared volume (/mnt/mta) for inter-process communication.
+- Log files per container under /var/log/, which can be inspected after the program finishes.
 
 ---
 
@@ -27,49 +27,55 @@ This project implements a multi-threaded C program that demonstrates password en
    cd Block_Chains
    ```
 
-2. **Build the Project**  
-   Use the provided `Makefile`:
-   ```bash
-   make
-   ```
-
-3. **Run the Program**  
-   Run the program from the terminal:
-   ```bash
-   ./build/encrypt.out -n <num-decrypters> -l <password-length> [-t <timeout-seconds>]
-   ```
-   
-   - -n | --num-of-decrypters :	(Required) Amount of decrypter threads which will be created
-   - -l | --password-length :		(Required) Number of characters that will be encrypted
-   - -t | --timeout :				(Optional) Time in seconds until server regenerates a password if it didn't receive correctly decrypted password
+2. **Build the Docker Images and Run the Program**  
+   Use the command:
+   make NUM_DECRYPTERS=<X> TIMEOUT=<T> PASSWORD_LENGTH=<L>
    
    For example,
-   ```bash
-   ./build/encrypt.out -n 4 -l 32 -t 10
-   ```
+   make NUM_DECRYPTERS=3 TIMEOUT=10 PASSWORD_LENGTH=16
    
    This will:
-   - Create 4 decrypter threads
-   - Use a 32-character password
+   - Start an encrypter container
+   - Start 3 decrypter containers
+   - Will set the password length to 16
    - Set a timeout of 10 seconds before generating a new password if not decrypted
-
+   
+3. **Stop the Program**  
+    Press CTRL+C in the terminal where launcher.sh is running.
+This will terminate both the running processes and their containers immediately.
+    
+4. **Cleanup**  
+    Use the command: make clean
+    This will: 
+   - Stop and remove all containers
+   - Delete Docker images
+   - Remove the shared volume ./mnt/mta/
+              
+5. **Print Log Files**  
+    You can view each container's log file using command: cat mnt/logs/*file_name*.log
+    
+    For example,
+    cat mnt/logs/decrypter_1.log
+ 
 ---
 
 ## Program Features
 
-- **Multithreaded Decryption:**  
-  Spawns multiple decrypter threads to efficiently brute-force encrypted passwords in parallel.
-
-- **Thread Synchronization:**  
-  Uses mutexes and condition variables to coordinate between the encrypter and decrypter threads safely.
+- **Containerized Brute-Force Decryption:**  
+  Runs each component (encrypter and multiple decrypters) in separate Docker containers for isolated   execution and easy management
+    
+- **Inter-Process Communication with Named Pipes:**  
+  Utilizes named pipes (FIFO) in a shared volume (/mnt/mta) to transfer encrypted passwords and guesses between the encrypter and decrypters.
 
 - **Dynamic Password Generation:**  
   Continuously generates random printable passwords of configurable length.
 
-- **Graceful Timeout Handling**  
+- **Graceful Timeout Handling:**  
   Supports optional timeout to automatically regenerate password to decrypt.
-
-
+  
+  - **Logging Per Container:**  
+  Each container writes detailed logs to a dedicated file in /var/log, allowing real-time monitoring from separate terminals.
+  
 ---
 
 ## License
