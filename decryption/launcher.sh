@@ -4,43 +4,39 @@ NUM_DECRYPTERS=$1
 TIMEOUT=$2
 PASSWORD_LENGTH=$3
 
+# Remove existing containers if they exist
+docker rm -f encrypter 2>/dev/null || true
+docker ps -aqf "name=decrypter_" | xargs -r docker rm -f
+
+#Build encrypter and decrypter images
+docker build -f Dockerfile.encrypter -t encrypter_img .
+docker build -f Dockerfile.decrypter -t decrypter_img .
+
 # Set up shared volume path for named pipes and config file and logs file
 VOLUME_PATH="./mnt/mta"
 LOG_VOLUME="./mnt/logs"
-mkdir -p "$VOLUME_PATH"
-mkdir -p "$LOG_VOLUME"
+mkdir -p "$VOLUME_PATH" "$LOG_VOLUME"
 
 # Create configuration file with the password length
 echo "password_length=$PASSWORD_LENGTH" > "$VOLUME_PATH/mtacrypt.conf"
 
-# Start encrypter container
-docker run --rm \
+docker run \
   --name encrypter \
   -v "$VOLUME_PATH":/mnt/mta \
   -v "$LOG_VOLUME":/var/log  \
   encrypter_img \
   ./encrypter -t "$TIMEOUT" &
-ENCRYPTER_PID=$!
-  
-# Give encrypter time to create the pipe
+
 sleep 1
 
-# Start decrypters container
 for i in $(seq 1 "$NUM_DECRYPTERS"); do
-  docker run --rm \
+  docker run \
     --name "decrypter_$i" \
     -e DECRYPTER_ID=$i \
     -v "$VOLUME_PATH":/mnt/mta \
     -v "$LOG_VOLUME":/var/log  \
     decrypter_img &
-done
 
-#Define what to do when Ctrl+C is pressed 
-trap 'echo "[LAUNCHER] Stopping decrypters..."; \
-      docker ps -q --filter "name=decrypter_" | xargs -r docker stop >/dev/null 2>&1; \
-      echo "[LAUNCHER] Stopping encrypter..."; \
-      docker stop encrypter >/dev/null 2>&1; \
-      exit 0' SIGINT
-      
-# Wait for the encrypter container to finish
-wait $ENCRYPTER_PID
+done
+     
+
