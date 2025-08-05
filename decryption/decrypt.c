@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 199309L
 #define _DEFAULT_SOURCE
-
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h> 
@@ -23,24 +23,30 @@
 #define MAX_PIPE_NAME_LENGTH 128
 #define MAX_MSG_LEN (MAX_PIPE_NAME_LENGTH + 1 + MAX_PASSWORD_LENGTH)
 
+
 //Global variables
+volatile sig_atomic_t keep_running = 1;
 FILE* log_fp = NULL;
 int decrypter_id = -1;
 
+void handle_sigint(int sig) {
+    keep_running = 0;
+}
+
 int main () {
-
-    bool running = true;
+    signal(SIGINT, handle_sigint);
+    signal(SIGTERM, handle_sigint);
     bool newPwd = false;
-
-    //Read password length
-    int password_length = read_config_password_length(CONFIG_FILE_PATH);
+    
+   //Read password length
+   int password_length = read_config_password_length(CONFIG_FILE_PATH);
     unsigned int enc_len = password_length;
     unsigned int key_len = password_length / 8;
 
     //Determine our unique decrypter ID by finding next vacant number
     int id = 1;
     char pipe_name[MAX_PIPE_NAME_LENGTH] = {};
-    while (running) {
+    while (keep_running) {
         snprintf(pipe_name, sizeof(pipe_name), "/mnt/mta/decrypter_pipe_%d", id);
         if (mkfifo(pipe_name, 0666) == 0) //Case: a new named pipe was created successfully
             break;
@@ -55,13 +61,14 @@ int main () {
     MTA_crypt_init();
 
     //Register with the encrypter
-    int reg_fd = open(ENCRYPTER_PIPE_FILE_PATH, O_WRONLY);
-    if (reg_fd < 0) {
+   int reg_fd = open(ENCRYPTER_PIPE_FILE_PATH, O_WRONLY);
+    if (reg_fd < 0 ) {
         log_message("ERROR", "Error: failed to open encrypter pipe - %s", strerror(errno));
         unlink(pipe_name);
 		close_file_logging();
         exit(1);
     }
+
     char reg_msg[MAX_PIPE_NAME_LENGTH + 16] = {};
     strncpy(reg_msg, pipe_name, sizeof(reg_msg) - 1);
     if (write(reg_fd, reg_msg, strlen(reg_msg)) < 0) {
@@ -104,7 +111,7 @@ int main () {
         exit(1);
     }
     log_message("INFO", "Received encrypted password");
-    newPwd = true;
+    newPwd=true;
 
     //Switch to non-blocking mode fd
     int flags = fcntl(fd, F_GETFL, 0);
@@ -117,7 +124,7 @@ int main () {
 
     int iter = 0;
     //Brute-force loop
-    while (running) {
+    while (keep_running) {
        iter++;
 
         //Each iteration check blocking for a new password pushed by encrypter

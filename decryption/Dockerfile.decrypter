@@ -1,0 +1,24 @@
+#base image
+FROM ubuntu:24.04
+
+#update and install required packages- gcc and make
+RUN apt-get update && apt-get install -y gcc make libssl-dev
+
+#copy .deb file and install the crypto libary
+COPY mta-utils-dev-x86_64.deb /tmp/
+RUN apt-get install -y /tmp/mta-utils-dev-x86_64.deb
+
+#ensure that the /var/log directory exists
+RUN mkdir -p /var/log
+
+#set the working directory inside the container to /app
+WORKDIR /app
+
+#copy source and header files into the containers /app directory
+COPY . .
+
+#compile the decrypter program
+RUN gcc -o decrypter decrypt.c decrypt_funcs.c config.c -lpthread -lmta_crypt -lmta_rand -lcrypto
+
+#set the default command to run the decrypter executable
+CMD ["./decrypter"]
