@@ -14,7 +14,7 @@ mkdir -p "$LOG_VOLUME"
 echo "password_length=$PASSWORD_LENGTH" > "$VOLUME_PATH/mtacrypt.conf"
 
 # Start encrypter container
-docker run --rm \
+sudo docker run --rm \
   --name encrypter \
   -v "$VOLUME_PATH":/mnt/mta \
   -v "$LOG_VOLUME":/var/log  \
@@ -27,7 +27,7 @@ sleep 1
 
 # Start decrypters container
 for i in $(seq 1 "$NUM_DECRYPTERS"); do
-  docker run --rm \
+  sudo docker run --rm \
     --name "decrypter_$i" \
     -e DECRYPTER_ID=$i \
     -v "$VOLUME_PATH":/mnt/mta \
@@ -37,9 +37,9 @@ done
 
 #Define what to do when Ctrl+C is pressed 
 trap 'echo "[LAUNCHER] Stopping decrypters..."; \
-      docker ps -q --filter "name=decrypter_" | xargs -r docker stop >/dev/null 2>&1; \
+      sudo docker ps -q --filter "name=decrypter_" | xargs -r sudo docker stop >/dev/null 2>&1; \
       echo "[LAUNCHER] Stopping encrypter..."; \
-      docker stop encrypter >/dev/null 2>&1; \
+      sudo docker stop encrypter >/dev/null 2>&1; \
       exit 0' SIGINT
       
 # Wait for the encrypter container to finish
