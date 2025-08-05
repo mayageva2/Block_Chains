@@ -122,10 +122,11 @@ int main () {
 		exit(1);
 	}
 
-    int iter = 1;
+    int iter = 0;
     //Brute-force loop
     while (keep_running) {
-       
+       iter++;
+
         //Each iteration check blocking for a new password pushed by encrypter
         ssize_t m = read(fd, encrypted, enc_len);
         if (m == enc_len){ //Case: received new encrypted password
@@ -167,26 +168,7 @@ int main () {
                 break;
             }
             close(gfd);
-
-            //Wait for answer on our pipe (non blocking)
-            ssize_t a = 0;
-            while (a <= 0) {
-                a = read(fd, answer, sizeof(answer)-1);
-                if (a < 0 && errno == EAGAIN) {
-                    usleep(10 * 1000); //10ms
-                    continue;
-                }
-                if (a <= 0) {
-                    log_message("ERROR", "Error: %s", strerror(errno));
-                    continue;
-                }
-            }
-           
-            answer[a] = '\0';
-            if (strcmp(answer, "OK") == 0) //Case: guess was correct!
-                log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
-
-        iter++;
+            log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
         }
     }
 
