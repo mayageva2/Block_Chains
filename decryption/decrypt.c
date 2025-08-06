@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 199309L
 #define _DEFAULT_SOURCE
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h> 
@@ -25,17 +24,12 @@
 
 
 //Global variables
-volatile sig_atomic_t keep_running = 1;
 FILE* log_fp = NULL;
 int decrypter_id = -1;
 
-void handle_sigint(int sig) {
-    keep_running = 0;
-}
 
 int main () {
-    signal(SIGINT, handle_sigint);
-    signal(SIGTERM, handle_sigint);
+    bool running=true;
     bool newPwd = false;
     
    //Read password length
@@ -46,7 +40,7 @@ int main () {
     //Determine our unique decrypter ID by finding next vacant number
     int id = 1;
     char pipe_name[MAX_PIPE_NAME_LENGTH] = {};
-    while (keep_running) {
+    while (running) {
         snprintf(pipe_name, sizeof(pipe_name), "/mnt/mta/decrypter_pipe_%d", id);
         if (mkfifo(pipe_name, 0666) == 0) //Case: a new named pipe was created successfully
             break;
@@ -124,7 +118,8 @@ int main () {
 
     int iter = 0;
     //Brute-force loop
-    while (keep_running) {
+    while (running) {
+
        iter++;
 
         //Each iteration check blocking for a new password pushed by encrypter

@@ -29,29 +29,24 @@ This project implements a multi-process Dockerized C program that demonstrates p
 
 2. **Build the Docker Images and Run the Program**  
    Use the command:
-   make NUM_DECRYPTERS=<X> TIMEOUT=<T> PASSWORD_LENGTH=<L>
+   ./launcher.sh <num-decrypters> <timeout-seconds> <password-length>
    
    For example,
-   make NUM_DECRYPTERS=3 TIMEOUT=10 PASSWORD_LENGTH=16
-   
+  ./launcher.sh 3 10 16
+  
    This will:
-   - Start an encrypter container
-   - Start 3 decrypter containers
+   - Build and start an encrypter container
+   - Build and start 3 decrypter containers
    - Will set the password length to 16
    - Set a timeout of 10 seconds before generating a new password if not decrypted
+   - run the program
    
 3. **Stop the Program**  
-    Press CTRL+C in the terminal where launcher.sh is running.
+    Open a new terminal window, navigate to the same directory where you ran the program, and run the following command: ./stop.sh 
+
 This will terminate both the running processes and their containers immediately.
-    
-4. **Cleanup**  
-    Use the command: make clean
-    This will: 
-   - Stop and remove all containers
-   - Delete Docker images
-   - Remove the shared volume ./mnt/mta/
               
-5. **Print Log Files**  
+4. **Print Log Files**  
     You can view each container's log file using command: cat mnt/logs/*file_name*.log
     
     For example,
