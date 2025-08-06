@@ -119,6 +119,7 @@ int main () {
     int iter = 0;
     //Brute-force loop
     while (running) {
+
        iter++;
 
         //Each iteration check blocking for a new password pushed by encrypter

@@ -20,7 +20,9 @@ mkdir -p "$VOLUME_PATH" "$LOG_VOLUME"
 # Create configuration file with the password length
 echo "password_length=$PASSWORD_LENGTH" > "$VOLUME_PATH/mtacrypt.conf"
 
-docker run \
+
+# Start encrypter container
+sudo docker run --rm \
   --name encrypter \
   -v "$VOLUME_PATH":/mnt/mta \
   -v "$LOG_VOLUME":/var/log  \
@@ -30,7 +32,8 @@ docker run \
 sleep 1
 
 for i in $(seq 1 "$NUM_DECRYPTERS"); do
-  docker run \
+  sudo docker run --rm \
+
     --name "decrypter_$i" \
     -e DECRYPTER_ID=$i \
     -v "$VOLUME_PATH":/mnt/mta \
@@ -38,5 +41,3 @@ for i in $(seq 1 "$NUM_DECRYPTERS"); do
     decrypter_img &
 
 done
-     
-
