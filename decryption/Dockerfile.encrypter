@@ -8,14 +8,14 @@ ARG ARCH=amd64
 RUN apt-get update && apt-get install -y gcc make libssl-dev
 
 #Copy both versions of the library
-COPY mta-utils-dev-amd64.deb /tmp/
-COPY mta-utils-dev-arm64.deb /tmp/
+COPY mta-utils-dev-x86_64.deb /tmp/
+COPY mta-utils-dev-aarch64.deb /tmp/
 
 # Install the correct version of the library depending on the architecture
 RUN if [ "$ARCH" = "arm64" ]; then \
-      dpkg -i /tmp/mta-utils-dev-arm64.deb; \
+      dpkg -i /tmp/mta-utils-dev-aarch64.deb; \
     else \
-      dpkg -i /tmp/mta-utils-dev-amd64.deb; \
+      dpkg -i /tmp/mta-utils-dev-x86_64.deb; \
     fi
     
 #ensure that the /var/log directory exists
