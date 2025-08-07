@@ -1,0 +1,15 @@
+makefile
+launcher.sh
+Dockerfile.*
+README.md
+*.o
+*.out
+*.log
+mnt/
+.git/
+.gitignore
+*.md
+*.conf
+.vscode/
+*.swp
+*.bak*~
