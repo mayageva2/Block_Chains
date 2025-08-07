@@ -26,8 +26,13 @@ This project implements a multi-process Dockerized C program that demonstrates p
    git clone https://github.com/mayageva2/Block_Chains.git
    cd Block_Chains
    ```
+   
+1. **Pull Docker Images**  
+   Run commands:
+   - docker pull victoriamus/encrypter_img
+   - docker pull victoriamus/decrypter_img
 
-2. **Build the Docker Images and Run the Program**  
+2. **Run the Program**  
    Use the command:
    ./launcher.sh <num-decrypters> <password-length> <timeout-seconds> 
    (you can also choose not to add timeout feature, then run ./launcher.sh <num-decrypters> <password-length>)
@@ -36,9 +41,7 @@ This project implements a multi-process Dockerized C program that demonstrates p
   ./launcher.sh 3 16 10
   
    This will:
-   - Build and start an encrypter container
-   - Build and start 3 decrypter containers
-   - Will set the password length to 16
+   - Set the password length to 16
    - Set a timeout of 10 seconds before generating a new password if not decrypted
    - run the program
    
