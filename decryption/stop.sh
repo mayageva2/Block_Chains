@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Stop and remove the encrypter container 
-docker rm -f encrypter 2>/dev/null || true
+# Stop the encrypter container 
+docker stop encrypter 2>/dev/null || true
 
-# Stop and remove all decrypter containers 
-docker ps -aqf "name=decrypter_" | xargs -r docker rm -f
+# Stop all decrypter containers 
+docker ps -aqf "name=decrypter_" | xargs -r docker stop
 
-echo "All encrypter and decrypter containers have been stopped and removed."
+echo "All encrypter and decrypter containers have been stopped."
 

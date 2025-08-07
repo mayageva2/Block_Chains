@@ -4,18 +4,25 @@ NUM_DECRYPTERS=$1
 PASSWORD_LENGTH=$2
 TIMEOUT=$3
 
+#check number of decrypters
+if [[ "$NUM_DECRYPTERS" -lt 1 ]]; then
+  echo "ERROR: Number of decrypters must be at least 1."
+  exit 1
+fi
+
+#check positive number for TIMEOUT
+if [[ -n "$TIMEOUT" && "$TIMEOUT" -lt 0 ]]; then
+  echo "ERROR: Timeout must be 0 or greater."
+  exit 1
+fi
+
 # Remove existing containers if they exist
 docker rm -f encrypter 2>/dev/null || true
 docker ps -aqf "name=decrypter_" | xargs -r docker rm -f
 
-#Build encrypter and decrypter images
-docker build -f Dockerfile.encrypter -t encrypter_img .
-docker build -f Dockerfile.decrypter -t decrypter_img .
-
 # Set up shared volume path for named pipes and config file and logs file
 VOLUME_PATH="./mnt/mta"
-LOG_VOLUME="./mnt/logs"
-mkdir -p "$VOLUME_PATH" "$LOG_VOLUME"
+mkdir -p "$VOLUME_PATH" 
 
 # Create configuration file with the password length
 echo "password_length=$PASSWORD_LENGTH" > "$VOLUME_PATH/mtacrypt.conf"
@@ -24,15 +31,13 @@ if [[ -n "$TIMEOUT" ]]; then
  docker run \
   --name encrypter \
   -v "$VOLUME_PATH":/mnt/mta \
-  -v "$LOG_VOLUME":/var/log  \
-  encrypter_img \
+  victoriamus/encrypter_img \
   ./encrypter -t "$TIMEOUT" &
 else
  docker run \
  --name encrypter \
   -v "$VOLUME_PATH":/mnt/mta \
-  -v "$LOG_VOLUME":/var/log  \
-  encrypter_img \
+  victoriamus/encrypter_img \
   ./encrypter &
 fi
 
@@ -43,8 +48,7 @@ for i in $(seq 1 "$NUM_DECRYPTERS"); do
     --name "decrypter_$i" \
     -e DECRYPTER_ID=$i \
     -v "$VOLUME_PATH":/mnt/mta \
-    -v "$LOG_VOLUME":/var/log  \
-    decrypter_img &
+    victoriamus/decrypter_img &
 
 done
      
