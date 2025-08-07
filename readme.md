@@ -48,14 +48,7 @@ This project implements a multi-process Dockerized C program that demonstrates p
 4. **Stop the Program**  
     Open a new terminal window, navigate to the same directory where you ran the program, and run the following command: ./stop.sh 
 
-This will terminate both the running processes and their containers immediately.
-              
-5. **Print Log Files**  
-    You can view each container's log file using command: cat mnt/logs/*file_name*.log
-    
-    For example,
-    cat mnt/logs/decrypter_1.log
- 
+This will stop the containers immediately.
 ---
 
 ## Program Features
