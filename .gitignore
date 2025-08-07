@@ -3,5 +3,4 @@ blocks
 *.so
 *.a
 tmp_deb/
-*.deb
 *.out

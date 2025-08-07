@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 199309L
 #define _DEFAULT_SOURCE
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h> 
@@ -23,17 +22,18 @@
 #define MAX_PIPE_NAME_LENGTH 128
 #define MAX_MSG_LEN (MAX_PIPE_NAME_LENGTH + 1 + MAX_PASSWORD_LENGTH)
 
+
 //Global variables
 FILE* log_fp = NULL;
 int decrypter_id = -1;
 
+
 int main () {
-
-    bool running = true;
+    bool running=true;
     bool newPwd = false;
-
-    //Read password length
-    int password_length = read_config_password_length(CONFIG_FILE_PATH);
+    
+   //Read password length
+   int password_length = read_config_password_length(CONFIG_FILE_PATH);
     unsigned int enc_len = password_length;
     unsigned int key_len = password_length / 8;
 
@@ -55,13 +55,14 @@ int main () {
     MTA_crypt_init();
 
     //Register with the encrypter
-    int reg_fd = open(ENCRYPTER_PIPE_FILE_PATH, O_WRONLY);
-    if (reg_fd < 0) {
+   int reg_fd = open(ENCRYPTER_PIPE_FILE_PATH, O_WRONLY);
+    if (reg_fd < 0 ) {
         log_message("ERROR", "Error: failed to open encrypter pipe - %s", strerror(errno));
         unlink(pipe_name);
 		close_file_logging();
         exit(1);
     }
+
     char reg_msg[MAX_PIPE_NAME_LENGTH + 16] = {};
     strncpy(reg_msg, pipe_name, sizeof(reg_msg) - 1);
     if (write(reg_fd, reg_msg, strlen(reg_msg)) < 0) {
@@ -104,7 +105,7 @@ int main () {
         exit(1);
     }
     log_message("INFO", "Received encrypted password");
-    newPwd = true;
+    newPwd=true;
 
     //Switch to non-blocking mode fd
     int flags = fcntl(fd, F_GETFL, 0);
@@ -115,10 +116,11 @@ int main () {
 		exit(1);
 	}
 
-    int iter = 1;
+    int iter = 0;
     //Brute-force loop
     while (running) {
-       
+       iter++;
+
         //Each iteration check blocking for a new password pushed by encrypter
         ssize_t m = read(fd, encrypted, enc_len);
         if (m == enc_len){ //Case: received new encrypted password
@@ -160,26 +162,7 @@ int main () {
                 break;
             }
             close(gfd);
-
-            //Wait for answer on our pipe (non blocking)
-            ssize_t a = 0;
-            while (a <= 0) {
-                a = read(fd, answer, sizeof(answer)-1);
-                if (a < 0 && errno == EAGAIN) {
-                    usleep(10 * 1000); //10ms
-                    continue;
-                }
-                if (a <= 0) {
-                    log_message("ERROR", "Error: %s", strerror(errno));
-                    continue;
-                }
-            }
-           
-            answer[a] = '\0';
-            if (strcmp(answer, "OK") == 0) //Case: guess was correct!
-                log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
-
-        iter++;
+            log_message("INFO", "Decrypted password: %s, key: %s (in %d iterations)", guess, key, iter);
         }
     }
 
