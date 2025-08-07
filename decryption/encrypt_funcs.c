@@ -9,9 +9,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h> 
-#include <errno.h> 
 #include <stdbool.h>
 #include <sys/stat.h>
+#include <stdarg.h>
 #include "encrypt_funcs.h"
 
 #define MAX_REG_MSG 128
@@ -20,12 +20,31 @@
 #define MAX_PATH_LEN 30
 
 char decrypters_pipes[MAX_DECRYPTERS][128];
+FILE *log_file = NULL;
 
 typedef struct {
     int decrypter_id;
     char guess[MAX_PASSWORD_LENGTH];
     bool is_pending;
 } GuessState;
+
+//This func prints to screen and to log file
+void log_message(const char *format, ...) {
+    va_list args;
+
+    //Print to screen
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+
+    //Print to log file
+    if (log_file) {
+        va_start(args, format);
+        vfprintf(log_file, format, args);
+        fflush(log_file);
+        va_end(args);
+    }
+}
 
 //This function generates a printable password and writes it into the provided buffer; Helper function
 void generate_printable_password(char *password, int length) {
@@ -46,7 +65,7 @@ void encrypt_password(char *password,char *key, char *encrypted, int length, int
 
 //This function prints a log when a new password is generated
 void print_new_pw(char* password, char* key, char* encrypted) {
-    printf("%ld\t[ENCRYPTER]\t[INFO]\tNew password generated: %.*s, key: %.*s, After encryption: %.*s\n",
+    log_message("%ld\t[ENCRYPTER]\t[INFO]\tNew password generated: %.*s, key: %.*s, After encryption: %.*s\n",
     time(NULL),
     password_length, password,
     password_length/8, key,
@@ -55,7 +74,7 @@ void print_new_pw(char* password, char* key, char* encrypted) {
 
 //This function prints a success log when a correct password guess is received from a decrypter
 void print_success(int decrypter_id, char* password, char* guess) {
-    printf("%ld\t[ENCRYPTER]\t[OK]\tPassword decrypted successfully by client #%d, received (%.*s), is (%.*s)\n",
+    log_message("%ld\t[ENCRYPTER]\t[OK]\tPassword decrypted successfully by client #%d, received (%.*s), is (%.*s)\n",
     time(NULL),
     decrypter_id,
     password_length, guess,
@@ -65,14 +84,14 @@ void print_success(int decrypter_id, char* password, char* guess) {
     
     //This function prints an error log when no password guess is received within the configured timeout
     void print_timeout() {
-        printf("%ld\t[ENCRYPTER]\t[ERROR]\tNo password received during configured timeout period (%d seconds), regenerating password\n",
+        log_message("%ld\t[ENCRYPTER]\t[ERROR]\tNo password received during configured timeout period (%d seconds), regenerating password\n",
         time(NULL),
         timeout_seconds);
     }
     
     //This function prints a log when a connection request occured
     void print_connection(int decrypter_id, char* fifo_path) {
-        printf("%ld\t[ENCRYPTER]\t[INFO]\tReceived connection request from decrypter id %d, fifo name %s\n\n",
+        log_message("%ld\t[ENCRYPTER]\t[INFO]\tReceived connection request from decrypter id %d, fifo name %s\n\n",
         time(NULL),
         decrypter_id,
         fifo_path);
@@ -80,7 +99,7 @@ void print_success(int decrypter_id, char* password, char* guess) {
     
     //This function prints a log when a decrypter submits a correct but outdated password
     void print_old_pw_guess(int decrypter_id, char* guess) {
-        printf("%ld\t[ENCRYPTER]\t[ERROR]\tReceived correct but outdated password from client #%d: (%.*s)\n",
+        log_message("%ld\t[ENCRYPTER]\t[ERROR]\tReceived correct but outdated password from client #%d: (%.*s)\n",
         time(NULL),
         decrypter_id,
         password_length, guess);
@@ -88,7 +107,7 @@ void print_success(int decrypter_id, char* password, char* guess) {
     
     //This function prints an error log when a wrong password guess is submitted by a decrypter
     void print_wrong_guess(int decrypter_id, char* guess, char* password) {
-        printf("%ld\t[ENCRYPTER]\t[ERROR]\tWrong password received from client #%d (%.*s), should be (%.*s)\n",
+        log_message("%ld\t[ENCRYPTER]\t[ERROR]\tWrong password received from client #%d (%.*s), should be (%.*s)\n",
         time(NULL),
         decrypter_id,
         password_length, guess,
@@ -105,7 +124,7 @@ void print_success(int decrypter_id, char* password, char* guess) {
             exit(1);
         }
     
-        printf("Created main pipe: %s\n", pipe_path);
+        log_message("Created main pipe: %s\n", pipe_path);
     }
     
     //Write msg to decryptor pipe
@@ -119,7 +138,7 @@ void print_success(int decrypter_id, char* password, char* guess) {
         else {
             if (errno == ENOENT || errno == ENXIO) {return;}
             perror("open decrypter pipe failed");
-            printf("errno: %d (%s)\n", errno, strerror(errno));
+            log_message("errno: %d (%s)\n", errno, strerror(errno));
         }
     }
     
@@ -214,6 +233,12 @@ void print_success(int decrypter_id, char* password, char* guess) {
  
 //This function is executed by the encrypter thread, and coordinates password generation and validation; Encrypter thread function
 void *encrypter(void *arg) {
+    log_file = fopen("/var/log/encrypter.log", "a");
+    if (!log_file) {
+        perror("Failed to open log file");
+        exit(1);
+    }
+
     bool first = true;
     GuessState current_guess = {.is_pending = false};
     bool password_decrypted = false;
@@ -275,5 +300,6 @@ void *encrypter(void *arg) {
         }
     }
     close(pipe_fd);
+    if (log_file) fclose(log_file);
     return NULL;
 }
