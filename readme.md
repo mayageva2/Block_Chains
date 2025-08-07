@@ -29,10 +29,11 @@ This project implements a multi-process Dockerized C program that demonstrates p
 
 2. **Build the Docker Images and Run the Program**  
    Use the command:
-   ./launcher.sh <num-decrypters> <timeout-seconds> <password-length>
+   ./launcher.sh <num-decrypters> <password-length> <timeout-seconds> 
+   (you can also choose not to add timeout feature, then run ./launcher.sh <num-decrypters> <password-length>)
    
    For example,
-  ./launcher.sh 3 10 16
+  ./launcher.sh 3 16 10
   
    This will:
    - Build and start an encrypter container
