@@ -1,8 +1,8 @@
 #!/bin/bash
 # Get the number of decrypters, timeout duration, and password length
 NUM_DECRYPTERS=$1
-TIMEOUT=$2
-PASSWORD_LENGTH=$3
+PASSWORD_LENGTH=$2
+TIMEOUT=$3
 
 # Remove existing containers if they exist
 docker rm -f encrypter 2>/dev/null || true
@@ -20,12 +20,21 @@ mkdir -p "$VOLUME_PATH" "$LOG_VOLUME"
 # Create configuration file with the password length
 echo "password_length=$PASSWORD_LENGTH" > "$VOLUME_PATH/mtacrypt.conf"
 
-docker run \
+if [[ -n "$TIMEOUT" ]]; then
+ docker run \
   --name encrypter \
   -v "$VOLUME_PATH":/mnt/mta \
   -v "$LOG_VOLUME":/var/log  \
   encrypter_img \
   ./encrypter -t "$TIMEOUT" &
+else
+ docker run \
+ --name encrypter \
+  -v "$VOLUME_PATH":/mnt/mta \
+  -v "$LOG_VOLUME":/var/log  \
+  encrypter_img \
+  ./encrypter &
+fi
 
 sleep 1
 
