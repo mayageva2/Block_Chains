@@ -33,7 +33,6 @@ sleep 1
 
 for i in $(seq 1 "$NUM_DECRYPTERS"); do
   sudo docker run --rm \
-
     --name "decrypter_$i" \
     -e DECRYPTER_ID=$i \
     -v "$VOLUME_PATH":/mnt/mta \

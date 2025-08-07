@@ -1,22 +1,17 @@
 #base image
 FROM ubuntu:24.04
 
-#Argument for architecture (default is amd64)
-ARG ARCH=amd64
-
 #update and install required packages- gcc and make
 RUN apt-get update && apt-get install -y gcc make libssl-dev
 
 #Copy both versions of the library
-COPY mta-utils-dev-x86_64.deb /tmp/
 COPY mta-utils-dev-aarch64.deb /tmp/
 
 # Install the correct version of the library depending on the architecture
-RUN if [ "$ARCH" = "arm64" ]; then \
-      dpkg -i /tmp/mta-utils-dev-aarch64.deb; \
-    else \
-      dpkg -i /tmp/mta-utils-dev-x86_64.deb; \
-    fi
+RUN dpkg -i /tmp/mta-utils-dev-aarch64.deb || true
+
+# Fix any missing dependencies (in case the .deb missed something)
+RUN apt-get install -f -y
 
 #ensure that the /var/log directory exists
 RUN mkdir -p /var/log
