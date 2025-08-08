@@ -26,8 +26,13 @@ This project implements a multi-process Dockerized C program that demonstrates p
    git clone https://github.com/mayageva2/Block_Chains.git
    cd Block_Chains
    ```
+   
+2. **Pull Docker Images**  
+   Run commands:
+   - docker pull victoriamus/encrypter_img
+   - docker pull victoriamus/decrypter_img
 
-2. **Build the Docker Images and Run the Program**  
+3. **Run the Program**  
    Use the command:
    ./launcher.sh <num-decrypters> <password-length> <timeout-seconds> 
    (you can also choose not to add timeout feature, then run ./launcher.sh <num-decrypters> <password-length>)
@@ -36,23 +41,14 @@ This project implements a multi-process Dockerized C program that demonstrates p
   ./launcher.sh 3 16 10
   
    This will:
-   - Build and start an encrypter container
-   - Build and start 3 decrypter containers
-   - Will set the password length to 16
+   - Set the password length to 16
    - Set a timeout of 10 seconds before generating a new password if not decrypted
    - run the program
    
-3. **Stop the Program**  
+4. **Stop the Program**  
     Open a new terminal window, navigate to the same directory where you ran the program, and run the following command: ./stop.sh 
 
-This will terminate both the running processes and their containers immediately.
-              
-4. **Print Log Files**  
-    You can view each container's log file using command: cat mnt/logs/*file_name*.log
-    
-    For example,
-    cat mnt/logs/decrypter_1.log
- 
+This will stop the containers immediately.
 ---
 
 ## Program Features
