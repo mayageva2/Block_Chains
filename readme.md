@@ -34,7 +34,7 @@ This project implements a multi-process Dockerized C program that demonstrates p
    sudo docker pull victoriamus/decrypter_img
    ```
 
-4. **Run the Program**  
+3. **Run the Program**  
    ```bash
    ./launcher.sh <num-decrypters> <password-length> <timeout-seconds> 
    ```
@@ -49,7 +49,7 @@ This project implements a multi-process Dockerized C program that demonstrates p
    - Set a timeout of 10 seconds before generating a new password if not decrypted
    - run the program
    
-6. **Stop the Program**  
+4. **Stop the Program**  
     Open a new terminal window, navigate to the same directory where you ran the program, and run the following command: `./stop.sh `
 
 > 🔥 **Important:**
@@ -62,7 +62,7 @@ This project implements a multi-process Dockerized C program that demonstrates p
   Runs each component (encrypter and multiple decrypters) in separate Docker containers for isolated execution and easy management
     
 - **Inter-Process Communication with Named Pipes:**  
-  Uses named pipes (FIFO) in a shared volume (/mnt/mta) to exchange encrypted passwords and guesses between the encrypter and decrypters.
+  Uses named pipes (FIFO) in a shared volume (`/mnt/mta`) to exchange encrypted passwords and guesses between the encrypter and decrypters.
 
 - **Dynamic Password Generation:**  
   Continuously generates random printable passwords of a configurable length.
