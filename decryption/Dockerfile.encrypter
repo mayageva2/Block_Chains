@@ -1,0 +1,26 @@
+#base image
+FROM ubuntu:24.04
+
+#update and install required packages- gcc and make
+RUN apt-get update && apt-get install -y gcc make libssl-dev
+
+#Copy libary to container
+COPY mta-utils-dev-x86_64.deb /tmp/
+
+#install libary
+RUN dpkg -i /tmp/mta-utils-dev-x86_64.deb || apt-get install -f -y
+
+#ensure that the /var/log directory exists
+RUN mkdir -p /var/log
+
+#set the working directory inside the container to /app
+WORKDIR /app
+
+#copy source and header files into the containers /app directory
+COPY encrypt.c encrypt_funcs.c config.c config.h encrypt_funcs.h ./
+
+#compile the encrypter program
+RUN gcc -o encrypter encrypt.c encrypt_funcs.c config.c -lpthread -lmta_crypt -lmta_rand -lcrypto
+
+#set the default command to run the encrypter executable
+CMD ["./encrypter"]
